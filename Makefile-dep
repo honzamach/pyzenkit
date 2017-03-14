@@ -1,0 +1,50 @@
+#-------------------------------------------------------------------------------
+# Copyright (C) since 2016 Jan Mach <honza.mach.ml@gmail.com>
+# Use of this source is governed by the MIT license, see LICENSE file.
+#-------------------------------------------------------------------------------
+
+DOCDIR = doc
+DIST_SIZE:=$(shell ls dist | wc -l)
+
+all: archive bdist deploy
+
+build: archive bdist
+
+# Perform unit tests
+test: FORCE
+	$(info Testing source code)
+	nosetests
+
+# Move old distribution files to archive directory
+archive: FORCE
+	$(info Checking if dist archivation is needed)
+	@if ! [ `ls dist/pyzenkit* | wc -l` = "0" ]; then\
+		echo "Moving old distribution files to archive";\
+		mv -f dist/pyzenkit* archive;\
+	fi
+
+# Build various Python package distributions
+bdist: FORCE
+	$(info Building distributions)
+
+	# Build and upload (insecure)
+	#python3 setup.py sdist bdist_wheel upload
+
+	# Build only
+	python3 setup.py sdist bdist_wheel
+
+# Perform installation from local files for both Python v2 and v3
+install: FORCE
+	$(info Local installation)
+	sudo pip3 install dist/pyzenkit*.whl
+
+# Deploy latest packages to PyPI
+deploy: FORCE
+	$(info PyPI deployment)
+
+	# Secure upload with Twine
+	twine upload dist/*
+
+# Empty rule as dependency wil force make to always perform target
+# Source: https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
+FORCE:
