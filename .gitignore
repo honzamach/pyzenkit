@@ -10,6 +10,6 @@
 /*.egg-info
 
 # Package building related folders.
-/archive/zenkit*
+/archive/pyzenkit*
 /build/
-/dist/zenkit*
+/dist/pyzenkit*
