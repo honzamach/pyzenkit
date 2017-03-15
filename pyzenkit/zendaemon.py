@@ -12,8 +12,6 @@ Base implementation of generic daemon.
 import os
 import re
 import sys
-import pwd
-import grp
 import json
 import time
 import copy
@@ -252,8 +250,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
     CONFIG_PID_FILE       = 'pid_file'
     CONFIG_STATE_FILE     = 'state_file'
     CONFIG_UMASK          = 'umask'
-    CONFIG_USER           = 'user'
-    CONFIG_GROUP          = 'group'
     CONFIG_STATS_INTERVAL = 'stats_interval'
     CONFIG_PARALEL        = 'paralel'
 
@@ -284,8 +280,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             (self.CONFIG_PID_FILE,       os.path.join(self.paths.get(self.PATH_RUN), "{}.pid".format(self.name))),
             (self.CONFIG_STATE_FILE,     os.path.join(self.paths.get(self.PATH_RUN), "{}.state".format(self.name))),
             (self.CONFIG_UMASK,          None),
-            (self.CONFIG_USER,           None),
-            (self.CONFIG_GROUP,          None),
             (self.CONFIG_STATS_INTERVAL, 300),
             (self.CONFIG_PARALEL,        False),
         )
@@ -317,12 +311,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
 
         # Option for overriding the default umask.
         argparser.add_argument('--umask', help = 'default file umask')
-
-        # Option for overriding the process UID.
-        argparser.add_argument('--user', help = 'process UID or user name')
-
-        # Option for overriding the process GID.
-        argparser.add_argument('--group', help = 'process GID or group name')
 
         # Option for defining processing statistics display interval.
         argparser.add_argument('--stats-interval', help = 'define processing statistics display interval')
@@ -399,43 +387,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOFILE] = True
         self.config[self.CORE][self.CORE_RUNLOG][self.CORE_RUNLOG_SAVE] = True
         self.config[self.CORE][self.CORE_PSTATE][self.CORE_PSTATE_SAVE] = True
-
-        if self.config[self.CONFIG_USER]:
-            u = self.config[self.CONFIG_USER]
-            res = None
-            if not res:
-                try:
-                    res = pwd.getpwnam(u)
-                    self.config[self.CONFIG_USER] = res[2]
-                except:
-                    pass
-            if not res:
-                try:
-                    res = pwd.getpwuid(int(u))
-                    self.config[self.CONFIG_USER] = res[2]
-                except:
-                    pass
-            if not res:
-                raise ZenDaemonException("Unknown user '{}'".format(u))
-
-        if self.config[self.CONFIG_GROUP]:
-            g = self.config[self.CONFIG_GROUP]
-            res = None
-            if not res:
-                try:
-                    res = grp.getgrnam(g)
-                    self.config[self.CONFIG_GROUP] = res[2]
-                except:
-                    pass
-            if not res:
-                try:
-                    res = grp.getgruid(int(g))
-                    self.config[self.CONFIG_GROUP] = res[2]
-                except:
-                    pass
-            if not res:
-                raise ZenDaemonException("Unknown group '{}'".format(g))
-
 
     def _stage_setup_custom(self):
         """
@@ -742,8 +693,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
                 work_dir       = self.c(self.CONFIG_WORK_DIR),
                 pidfile        = self.get_fn_pidfile(),
                 umask          = self.c(self.CONFIG_UMASK),
-                uid            = self.c(self.CONFIG_USER),
-                gid            = self.c(self.CONFIG_GROUP),
                 files_preserve = logs,
                 signals        = {
                     signal.SIGHUP:  self._hnd_signal_hup,
@@ -765,8 +714,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
                 work_dir       = self.c(self.CONFIG_WORK_DIR),
                 pidfile        = self.get_fn_pidfile(),
                 umask          = self.c(self.CONFIG_UMASK),
-                uid            = self.c(self.CONFIG_USER),
-                gid            = self.c(self.CONFIG_GROUP),
                 signals        = {
                     signal.SIGHUP:  self._hnd_signal_hup,
                     signal.SIGUSR1: self._hnd_signal_usr1,

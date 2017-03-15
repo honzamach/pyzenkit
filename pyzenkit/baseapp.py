@@ -24,6 +24,8 @@ usefull features including (but not limited to) following:
 
 import os
 import sys
+import pwd
+import grp
 import re
 import shutil
 import glob
@@ -148,6 +150,8 @@ class BaseApp:
     CONFIG_ACTION      = 'action'
     CONFIG_INPUT       = 'input'
     CONFIG_LIMIT       = 'limit'
+    CONFIG_USER        = 'user'
+    CONFIG_GROUP       = 'group'
     CONFIG_CFG_FILE    = 'config_file'
     CONFIG_CFG_DIR     = 'config_dir'
     CONFIG_LOG_FILE    = 'log_file'
@@ -269,6 +273,12 @@ class BaseApp:
         # Option for setting the result limit.
         argparser.add_argument('--limit', help = 'apply given limit to the result', type = int)
 
+        # Option for overriding the process UID.
+        argparser.add_argument('--user', help = 'process UID or user name')
+
+        # Option for overriding the process GID.
+        argparser.add_argument('--group', help = 'process GID or group name')
+
         # Option for overriding the name of the configuration file.
         argparser.add_argument('--config-file', help = 'name of the config file')
 
@@ -376,6 +386,8 @@ class BaseApp:
             (self.CONFIG_ACTION,      None),
             (self.CONFIG_INPUT,       None),
             (self.CONFIG_LIMIT,       None),
+            (self.CONFIG_USER,        None),
+            (self.CONFIG_GROUP,       None),
             (self.CONFIG_CFG_FILE,    os.path.join(self.paths.get(self.PATH_CFG), "{}.conf".format(self.name))),
             (self.CONFIG_CFG_DIR,     os.path.join(self.paths.get(self.PATH_CFG), "{}".format(self.name))),
             (self.CONFIG_LOG_FILE,    os.path.join(self.paths.get(self.PATH_LOG), "{}.log".format(self.name))),
@@ -602,6 +614,42 @@ class BaseApp:
         cc[self.CORE_RUNLOG_SAVE] = True
         self.config[self.CORE][self.CORE_RUNLOG] = cc
 
+        if self.config[self.CONFIG_USER]:
+            u = self.config[self.CONFIG_USER]
+            res = None
+            if not res:
+                try:
+                    res = pwd.getpwnam(u)
+                    self.config[self.CONFIG_USER] = [res[0], res[2]]
+                except:
+                    pass
+            if not res:
+                try:
+                    res = pwd.getpwuid(int(u))
+                    self.config[self.CONFIG_USER] = [res[0], res[2]]
+                except:
+                    pass
+            if not res:
+                raise ZenAppSetupException("Unknown user account '{}'".format(u))
+
+        if self.config[self.CONFIG_GROUP]:
+            g = self.config[self.CONFIG_GROUP]
+            res = None
+            if not res:
+                try:
+                    res = grp.getgrnam(g)
+                    self.config[self.CONFIG_GROUP] = [res[0], res[2]]
+                except:
+                    pass
+            if not res:
+                try:
+                    res = grp.getgrgid(int(g))
+                    self.config[self.CONFIG_GROUP] = [res[0], res[2]]
+                except:
+                    pass
+            if not res:
+                raise ZenAppSetupException("Unknown group account '{}'".format(g))
+
     def _configure_check(self):
         """
         TODO: Implement config checking mechanism.
@@ -635,6 +683,21 @@ class BaseApp:
 
         # Check all loaded configurations.
         self._configure_check()
+
+    def _stage_setup_privileges(self):
+        """
+        Adjust the script privileges according to the configration.
+        """
+        g = self.c(self.CONFIG_GROUP, None)
+        if g and g[1] != os.getgid():
+            cg = grp.getgrgid(os.getgid())
+            self.dbgout("[STATUS] Dropping group privileges from '{}':'{}' to '{}':'{}'".format(cg[0], cg[2], g[0], g[1]))
+            os.setgid(g[1])
+        u = self.c(self.CONFIG_USER, None)
+        if u and u[1] != os.getuid():
+            cu = pwd.getpwuid(os.getuid())
+            self.dbgout("[STATUS] Dropping user privileges from '{}':'{}' to '{}':'{}'".format(cu[0], cu[2], u[0], u[1]))
+            os.setuid(u[1])
 
     def _stage_setup_logging(self):
         """
@@ -756,6 +819,9 @@ class BaseApp:
         try:
             # Setup configurations.
             self._stage_setup_configuration()
+
+            # Setup script privileges
+            self._stage_setup_privileges()
 
             # Setup logging, if the appropriate feature is enabled.
             if self.c(self.CONFIG_LOG_FILE):
