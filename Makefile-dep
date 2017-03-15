@@ -10,6 +10,18 @@ all: archive bdist deploy
 
 build: archive bdist
 
+help:
+	$(info List of possible make targets:)
+	$(info   )
+	$(info   * all:     archive previous packages, build new distribution and deploy to PyPI [default])
+	$(info   * build:   archive previous packages and build new distribution)
+	$(info   * test:    run unit tests)
+	$(info   * archive: archive previous packages)
+	$(info   * bdist:   build new distribution)
+	$(info   * install: install distribution on local machine)
+	$(info   * deploy:  deploy to PyPI)
+	$(info   )
+
 # Perform unit tests
 test: FORCE
 	$(info Testing source code)
@@ -33,10 +45,10 @@ bdist: FORCE
 	# Build only
 	python3 setup.py sdist bdist_wheel
 
-# Perform installation from local files for both Python v2 and v3
+# Perform installation from local files for Python 3
 install: FORCE
 	$(info Local installation)
-	sudo pip3 install dist/pyzenkit*.whl
+	sudo pip3 install dist/pyzenkit*.whl --upgrade
 
 # Deploy latest packages to PyPI
 deploy: FORCE
