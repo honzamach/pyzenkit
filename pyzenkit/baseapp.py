@@ -1287,17 +1287,14 @@ class BaseApp:
         """
         Dump given data structure into JSON string.
         """
-        return json.dumps(data, sort_keys=True, indent=4, **kwargs)
+        return pyzenkit.jsonconf.json_dump(data, **kwargs)
 
     @staticmethod
     def json_save(json_file, data, **kwargs):
         """
         Save given data structure into given JSON file.
         """
-        mf = open(json_file, 'w')
-        json.dump(data, mf, sort_keys = True, **kwargs)
-        mf.close()
-        return True
+        return pyzenkit.jsonconf.json_save(json_file, data, **kwargs)
 
     @staticmethod
     def json_load(json_file, **kwargs):

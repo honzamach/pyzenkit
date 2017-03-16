@@ -44,7 +44,7 @@ def _json_default(o):
     elif callable(o):
         return "CALLBACK({}:{})".format(o.__self__.__class__.__name__, o.__name__)
     else:
-        raise TypeError(o)
+        return repr(o)
 
 class QueueEmptyException(Exception):
     """
@@ -474,7 +474,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         if self.c(self.CONFIG_NODAEMON):
             self.state_dump(self._get_state())
         else:
-            self.state_save(self._get_state(), indent=4, default=_json_default)
+            self.state_save(self._get_state())
         return (self.FLAG_CONTINUE, None)
 
     def cbk_event_log_statistics(self, daemon, args):
@@ -585,7 +585,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             statistics['components'][component.__class__.__name__] = component.get_statistics(self)
         return statistics
 
-    def state_dump(self, state, **kwargs):
+    def state_dump(self, state):
         """
         Dump current daemon state.
 
@@ -593,9 +593,9 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         # Dump current script state.
         #self.logger.debug("Current daemon state >>>\n{}".format(json.dumps(state, sort_keys=True, indent=4)))
-        print("Current daemon state >>>\n{}".format(self.json_dump(state, default=_json_default, **kwargs)))
+        print("Current daemon state >>>\n{}".format(self.json_dump(state, default=_json_default)))
 
-    def state_save(self, state, **kwargs):
+    def state_save(self, state):
         """
         Save current daemon state.
 
@@ -604,8 +604,8 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         sfn = self.get_fn_state()
         self.dbgout("[STATUS] Saving current daemon state to file '{}'".format(sfn))
         pprint.pprint(state)
-        self.dbgout("[STATUS] Current daemon state:\n{}".format(self.json_dump(state, default=_json_default, **kwargs)))
-        self.json_save(sfn, state, default=_json_default, **kwargs)
+        self.dbgout("[STATUS] Current daemon state:\n{}".format(self.json_dump(state, default=_json_default)))
+        self.json_save(sfn, state, default=_json_default)
         self.logger.info("Current daemon state saved to file '{}'".format(sfn))
 
     def pidfiles_list(self, **kwargs):

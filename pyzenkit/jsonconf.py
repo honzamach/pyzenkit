@@ -49,6 +49,18 @@ def json_default(o):
 
 #-------------------------------------------------------------------------------
 
+def json_dump(data, **kwargs):
+    """
+    Dump given data structure into JSON string.
+    """
+    if not 'sort_keys' in kwargs:
+        kwargs['sort_keys'] = True
+    if not 'indent' in kwargs:
+        kwargs['indent'] = 4
+    if not 'default' in kwargs:
+        kwargs['default'] = _json_default
+    return json.dumps(data, **kwargs)
+
 def json_save(json_file, data, **kwargs):
     """
     Save data structure into given JSON configuration file.
@@ -61,6 +73,7 @@ def json_save(json_file, data, **kwargs):
         kwargs['default'] = json_default
     with open(json_file, "w") as f:
         json.dump(data, f, **kwargs)
+    return True
 
 def json_load(json_file):
     """
