@@ -3,18 +3,17 @@
 #-------------------------------------------------------------------------------
 # Copyright (C) since 2016 Jan Mach <honza.mach.ml@gmail.com>
 # Use of this source is governed by the MIT license, see LICENSE file.
-#--------------
+#-------------------------------------------------------------------------------
 
 
 """
-Implementation of JSON configuration handler.
-
-This module provides following tools and features:
+This module provides following tools for manipulation with JSON configuration
+files:
 
 * Simple writing of formated JSON configuration files
 * Simple reading of any JSON configuration files
 * Reading and merging of multiple JSON configuration files/directories
-* Support for comments in JSON files
+* Support for single line comments in JSON files (``#``,``//``)
 * JSON schema validation
 """
 
@@ -129,7 +128,9 @@ def json_load(json_file):
     """
     Load contents of given JSON configuration file.
 
-    The JSON syntax is enhanced with support for single line comments ('#','//').
+    The JSON syntax is enhanced with support for single line comments ('#','//'),
+    but the parsing is really simple and the comment must be at the beginning of
+    the line (except for whitespaces).
 
     :param str json_file: Name of the source JSON file.
     :return: Loaded data structure.
