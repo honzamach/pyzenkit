@@ -5,3 +5,5 @@ pyzenkit.baseapp
 
 .. automodule:: pyzenkit.baseapp
    :members:
+   :private-members:
+   :special-members:

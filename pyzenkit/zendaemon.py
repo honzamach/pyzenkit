@@ -1,13 +1,43 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #-------------------------------------------------------------------------------
-# Copyright (C) since 2016 Jan Mach <honza.mach.ml@gmail.com>
-# Use of this source is governed by the MIT license, see LICENSE file.
+# This file is part of PyZenKit package.
+#
+# Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
+# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Use of this package is governed by the MIT license, see LICENSE file.
+#
+# This project was initially written for personal use of the original author. Later
+# it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
+
 """
-Base implementation of generic daemon.
+This module provides base implementation of generic daemon. It builds on top of
+:py:mod:`pyzenkit.baseapp` and adds following usefull features:
+
+* Event driven design.
+* Support for arbitrary signal handling.
+* Support for modularity with daemon components.
+* Fully automated daemonization process.
+
+Events and event queue
+^^^^^^^^^^^^^^^^^^^^^^
+
+Signal handling
+^^^^^^^^^^^^^^^
+
+Daemon components
+^^^^^^^^^^^^^^^^^
+
+Daemonization
+^^^^^^^^^^^^^
+
 """
+
+
+__author__  = "Jan Mach <honza.mach.ml@gmail.com>"
+
 
 import os
 import re
@@ -23,145 +53,196 @@ import math
 import glob
 import pprint
 
-# Generate the path to custom 'lib' directory
-lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-sys.path.insert(0, lib)
-
 #
 # Custom libraries.
 #
 import pyzenkit.baseapp
 import pyzenkit.daemonizer
 
+
 # Translation table to translate signal numbers to their names.
 SIGNALS_TO_NAMES_DICT = dict((getattr(signal, n), n) \
     for n in dir(signal) if n.startswith('SIG') and '_' not in n )
 
-# Simple method for JSON serialization
-def _json_default(o):
-    if isinstance(o, ZenDaemonComponent):
-        return "COMPONENT({})".format(o.__class__.__name__)
-    elif callable(o):
-        return "CALLBACK({}:{})".format(o.__self__.__class__.__name__, o.__name__)
-    else:
-        return repr(o)
+
+def _json_default(obj):
+    """
+    Fallback method for serializing unknown objects into JSON.
+    """
+    if isinstance(obj, ZenDaemonComponent):
+        return "COMPONENT({})".format(obj.__class__.__name__)
+    if callable(obj):
+        return "CALLBACK({}:{})".format(obj.__self__.__class__.__name__, obj.__name__)
+    return repr(obj)
+
+
+#-------------------------------------------------------------------------------
+
 
 class QueueEmptyException(Exception):
     """
-    Exception representing empty event queue.
+    Exception representing empty event queue. This exception will be thrown by
+    :py:class:`zendaemon.EventQueueManager` in the event of empty event queue.
     """
+    def __init__(self, description, **params):
+        """
+        Initialize new exception with given description and optional additional
+        parameters.
 
-    def __init__(self, description):
-        self._description = description
+        :param str description: Description of the problem.
+        :param params: Optional additional parameters.
+        """
+        super().__init__()
+
+        self.description = description
+        self.params = params
+
     def __str__(self):
-        return repr(self._description)
+        """
+        Operator override for automatic string output.
+        """
+        return repr(self.description)
+
 
 class EventQueueManager:
     """
-    Implementation of event queue manager.
-
-    This implementation supports scheduling of both generic sequential events and
-    timed events.
+    Implementation of event queue manager. This implementation supports scheduling
+    of both sequential events and timed events (events scheduled for specific time).
+    The actual event object, that is added into the queue may be arbitrary object,
+    there are no restrictions for its type or interface, because the queue manager
+    does not interacts with the event itself. Internally two separate event queues
+    are used, one for sequentialy scheduled events and another for timed events.
+    For best performance the sequential queue is implemented using :py:class:`collections.dequeue`
+    object and the timed queue is implemented using :py:mod:`heapq` module.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self):
         """
-
+        Base event queue manager constructor. Initialize internal event queues.
         """
         self.events    = collections.deque()
         self.events_at = []
 
-    def __del__(self):
-        """
-        Default script object destructor. Perform generic cleanup.
-        """
-        pass
-
     def schedule(self, event, args = None):
         """
         Schedule new event to the end of the event queue.
+
+        :param event: Event to be scheduled.
+        :param args: Optional event arguments to be stored alongside the event.
         """
         self.events.append((event, args))
 
     def schedule_next(self, event, args = None):
         """
         Schedule new event to the beginning of the event queue.
+
+        :param event: Event to be scheduled.
+        :param args: Optional event arguments to be stored alongside the event.
         """
         self.events.appendleft((event, args))
 
-    def schedule_at(self, ts, event, args = None):
+    def schedule_at(self, tstamp, event, args = None):
         """
         Schedule new event for a specific time.
+
+        :param float tstamp: Timestamp to which to schedule the event (compatible with :py:func:`time.time`).
+        :param event: Event to be scheduled.
+        :param args: Optional event arguments to be stored alongside the event.
         """
-        heapq.heappush(self.events_at, (ts, event, args))
+        heapq.heappush(self.events_at, (tstamp, event, args))
 
     def schedule_after(self, delay, event, args = None):
         """
-        Schedule new event after a given.
+        Schedule new event after a given time delay.
+
+        :param float delay: Time delay after which to schedule the event.
+        :param event: Event to be scheduled.
+        :param args: Optional event arguments to be stored alongside the event.
         """
-        ts = time.time() + delay
-        heapq.heappush(self.events_at, (ts, event, args))
+        tstamp = time.time() + delay
+        heapq.heappush(self.events_at, (tstamp, event, args))
 
     def next(self):
         """
-        Fetch next event from event queue.
+        Fetch next event from queue.
+
+        :raises QueueEmptyException: If the queue is empty.
+        :return: Return next scheduled event from queue along with its optional arguments.
+        :rtype: tuple
         """
-        l1 = len(self.events_at)
-        if l1:
+        len1 = len(self.events_at)
+        if len1:
             if self.events_at[0][0] <= time.time():
-                (ts, event, args) = heapq.heappop(self.events_at)
+                (tstamp, event, args) = heapq.heappop(self.events_at)
                 return (event, args)
-        l2 = len(self.events)
-        if l2:
+        len2 = len(self.events)
+        if len2:
             return self.events.popleft()
-        if (l1 + l2) == 0:
+        if (len1 + len2) == 0:
             raise QueueEmptyException("Event queue is empty")
         return (None, None)
 
     def when(self):
         """
-        Determine the time when the next event is scheduled.
+        Determine the timestamp of the next scheduled event.
+
+        :return: Unix timestamp of next scheduled event.
+        :rtype: float
         """
+        if self.events:
+            return time.time()
         return self.events_at[0][0]
 
     def wait(self):
         """
-        Calculate the waiting period until the next even is due.
+        Calculate the waiting period until the next event in queue is due.
+
+        :return: Time interval for which to wait until the next event is due.
+        :rtype: float
         """
+        if self.events:
+            return 0
         return self.events_at[0][0] - time.time()
 
     def count(self):
         """
         Count the total number of scheduled events.
+
+        :return: Number of events.
+        :rtype: int
         """
         return len(self.events_at) + len(self.events)
 
-class ZenDaemonComponentException(Exception):
-    """
 
+#-------------------------------------------------------------------------------
+
+
+class ZenDaemonComponentException(pyzenkit.baseapp.ZenAppProcessException):
     """
-    def __init__(self, description):
-        self._description = description
-    def __str__(self):
-        return repr(self._description)
+    Describes problems specific to daemon components.
+    """
+    pass
+
 
 class ZenDaemonComponent:
     """
-    Base implementation of all daemon components.
+    Base implementation for all daemon components. Daemon components are building
+    blocks of each daemon and they are responsible for the actual work to be done.
+    This approach enables very easy reusability.
     """
 
     def __init__(self, **kwargs):
         """
-
+        Base daemon component object constructor.
         """
         self.statistics_cur  = {}
         self.statistics_prev = {}
         self.statistics_ts   = time.time()
-        self.pattern_stats = "{}\n\t{:15s}  {:12,d} (+{:8,d}, {:8,.2f} #/s)"
+        self.pattern_stats   = "{}\n\t{:15s}  {:12,d} (+{:8,d}, {:8,.2f} #/s)"
 
-    def inc_statistics(self, key, increment = 1):
+    def inc_statistic(self, key, increment = 1):
         """
-        Raise given statistics key with given increment.
+        Raise given statistic key with given increment.
         """
         self.statistics_cur[key] = self.statistics_cur.get(key, 0) + increment
 
@@ -169,41 +250,46 @@ class ZenDaemonComponent:
         """
         Get the list of event names and their appropriate callback handlers.
         """
-        raise Exception("This method must be implemented in subclass")
+        raise NotImplementedError("This method must be implemented in subclass")
 
-    def get_state(self, daemon):
+    def get_state(self):
         """
         Get the current internal state of component (for debugging).
         """
-        return {}
+        return {
+            'statistics': self.statistics_cur
+        }
 
-    def calc_statistics(self, daemon, stats_cur, stats_prev, tdiff):
+    @staticmethod
+    def calc_statistics(stats_cur, stats_prev, tdiff):
         """
-
+        Calculate daemon component statistics.
         """
         result = {}
-        for k in stats_cur:
-            if isinstance(stats_cur[k], int):
-                result[k] = {
-                    'cnt':  stats_cur[k],
-                    'inc':  stats_cur[k] - stats_prev.get(k, 0),
-                    'spd': (stats_cur[k] - stats_prev.get(k, 0)) / tdiff
-                }
-            elif isinstance(stats_cur[k], dict):
-                result[k] = self.calc_statistics(daemon, stats_cur[k], stats_prev.get(k, {}), tdiff)
+        for key in stats_cur:
+            result[key] = {
+                # Absolute count.
+                'cnt':  stats_cur[key],
+                # Increase from previous value.
+                'inc':  stats_cur[key] - stats_prev.get(key, 0),
+                # Processing speed (#/s)
+                'spd': (stats_cur[key] - stats_prev.get(key, 0)) / tdiff,
+                # Percentage increase.
+                'pct': (stats_cur[key] - stats_prev.get(key, 0)) / (stats_cur[key] / 100)
+            }
         return result
 
-    def get_statistics(self, daemon):
+    def get_statistics(self):
         """
         Calculate processing statistics
         """
-        ct = time.time()
-        tdiff = ct - self.statistics_ts
+        curts = time.time()
+        tdiff = curts - self.statistics_ts
 
-        stats = self.calc_statistics(daemon, self.statistics_cur, self.statistics_prev, tdiff)
+        stats = self.calc_statistics(self.statistics_cur, self.statistics_prev, tdiff)
 
         self.statistics_prev = copy.copy(self.statistics_cur)
-        self.statistics_ts = ct
+        self.statistics_ts = curts
         return stats
 
     def setup(self, daemon):
@@ -218,31 +304,41 @@ class ZenDaemonComponent:
         """
         pass
 
-class ZenDaemonException(pyzenkit.baseapp.ZenAppException):
+
+#-------------------------------------------------------------------------------
+
+
+class ZenDaemonException(pyzenkit.baseapp.ZenAppProcessException):
     """
     Describes problems specific to daemons.
     """
     pass
+
 
 class ZenDaemon(pyzenkit.baseapp.BaseApp):
     """
     Base implementation of generic daemon.
     """
 
+    #
+    # Class constants.
+    #
+
     # Event loop processing flags.
     FLAG_CONTINUE = 1
     FLAG_STOP     = 0
 
+    # List of event names.
     EVENT_SIGNAL_HUP     = 'signal_hup'
     EVENT_SIGNAL_USR1    = 'signal_usr1'
     EVENT_SIGNAL_USR2    = 'signal_usr2'
     EVENT_LOG_STATISTICS = 'log_statistics'
 
     # List of core configuration keys.
-    CORE_STATE          = 'state'
-    CORE_STATE_SAVE     = 'save'
+    CORE_STATE      = 'state'
+    CORE_STATE_SAVE = 'save'
 
-    # List of possible configuration keys.
+    # List of configuration keys.
     CONFIG_COMPONENTS     = 'components'
     CONFIG_NODAEMON       = 'no_daemon'
     CONFIG_CHROOT_DIR     = 'chroot_dir'
@@ -253,12 +349,21 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
     CONFIG_STATS_INTERVAL = 'stats_interval'
     CONFIG_PARALEL        = 'paralel'
 
+
     def __init__(self, **kwargs):
         """
-        Default script object constructor.
+        Default application object constructor.
+
+        Only defines core internal variables. The actual object initialization,
+        during which command line arguments and configuration files are parsed,
+        is done during the configure() stage of the run() sequence. This method
+        overrides the base implementation in :py:func:`baseapp.BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters.
         """
         super().__init__(**kwargs)
 
+        self.flag_done  = False
         self.queue      = EventQueueManager()
         self.components = []
         self.callbacks  = {}
@@ -267,56 +372,58 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self._init_components(**kwargs)
         self._init_schedule(**kwargs)
 
-    def _init_config(self, **kwargs):
+    def _init_config(self, cfgs, **kwargs):
         """
-        Initialize script configurations to default values.
-        """
-        config = super()._init_config(**kwargs)
+        Initialize default application configurations. This method overrides the
+        base implementation in :py:func:`baseapp.BaseApp._init_argparser` and it
+        adds additional configurations via ``cfgs`` parameter.
 
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param list cfgs: Additional set of configurations.
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Default configuration structure.
+        :rtype: dict
+        """
         cfgs = (
             (self.CONFIG_NODAEMON,       False),
             (self.CONFIG_CHROOT_DIR,     None),
             (self.CONFIG_WORK_DIR,       '/'),
             (self.CONFIG_PID_FILE,       os.path.join(self.paths.get(self.PATH_RUN), "{}.pid".format(self.name))),
             (self.CONFIG_STATE_FILE,     os.path.join(self.paths.get(self.PATH_RUN), "{}.state".format(self.name))),
-            (self.CONFIG_UMASK,          None),
+            (self.CONFIG_UMASK,          0o002),
             (self.CONFIG_STATS_INTERVAL, 300),
             (self.CONFIG_PARALEL,        False),
         )
-        for c in cfgs:
-            config[c[0]] = kwargs.pop('default_' + c[0], c[1])
-        return config
+        return super()._init_config(cfgs, **kwargs)
 
     def _init_argparser(self, **kwargs):
         """
-        Initialize script command line argument parser.
+        Initialize application command line argument parser. This method overrides
+        the base implementation in :py:func:`baseapp.BaseApp._init_argparser` and
+        it must return valid :py:class:`argparse.ArgumentParser` object.
+
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Initialized argument parser object.
+        :rtype: argparse.ArgumentParser
         """
         argparser = super()._init_argparser(**kwargs)
 
-        # Option flag indicating that the script should not daemonize and stay
-        # in foreground (usefull for debugging or testing).
-        argparser.add_argument('--no-daemon', help = 'do not daemonize, stay in foreground (flag)', action='store_true', default = None)
+        #
+        # Create and populate options group for common daemon arguments.
+        #
+        arggroup_daemon = argparser.add_argument_group('common daemon arguments')
 
-        # Option for overriding the name of the chroot directory.
-        argparser.add_argument('--chroot-dir', help = 'name of the chroot directory')
-
-        # Option for overriding the name of the work directory.
-        argparser.add_argument('--work-dir', help = 'name of the work directory')
-
-        # Option for overriding the name of the PID file.
-        argparser.add_argument('--pid-file', help = 'name of the pid file')
-
-        # Option for overriding the name of the state file.
-        argparser.add_argument('--state-file', help = 'name of the state file')
-
-        # Option for overriding the default umask.
-        argparser.add_argument('--umask', help = 'default file umask')
-
-        # Option for defining processing statistics display interval.
-        argparser.add_argument('--stats-interval', help = 'define processing statistics display interval')
-
-        # Option flag indicating that the script may run in paralel processes.
-        argparser.add_argument('--paralel', help = 'run in paralel mode (flag)', action = 'store_true', default = None)
+        arggroup_daemon.add_argument('--no-daemon',      help = 'do not fully daemonize and stay in foreground (flag)', action='store_true', default = None)
+        arggroup_daemon.add_argument('--chroot-dir',     help = 'name of the chroot directory', type = str, default = None)
+        arggroup_daemon.add_argument('--work-dir',       help = 'name of the process work directory', type = str, default = None)
+        arggroup_daemon.add_argument('--pid-file',       help = 'name of the pid file', type = str, default = None)
+        arggroup_daemon.add_argument('--state-file',     help = 'name of the state file', type = str, default = None)
+        arggroup_daemon.add_argument('--umask',          help = 'default file umask', default = None)
+        arggroup_daemon.add_argument('--stats-interval', help = 'processing statistics display interval in seconds', type = int)
+        arggroup_daemon.add_argument('--paralel',        help = 'run in paralel mode (flag)', action = 'store_true', default = None)
 
         return argparser
 
@@ -336,6 +443,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         Initialize internal event callbacks.
         """
         for event in self.get_events():
+            self.dbgout("Initializing event callback '{}':'{}'".format(str(event['event']), str(event['callback'])))
             self._init_event_callback(event['event'], event['callback'], event['prepend'])
 
     def _init_components(self, **kwargs):
@@ -366,21 +474,26 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         for event in initial_events:
             self.queue.schedule_after(*event)
 
+
     #---------------------------------------------------------------------------
+
 
     def _configure_postprocess(self):
         """
-        Setup internal script core mechanics. Config postprocessing routine.
+        Perform configuration postprocessing and calculate core configurations.
+        This method overrides the base implementation in :py:func:`baseapp.BaseApp._configure_postprocess`.
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration`.
         """
         super()._configure_postprocess()
 
-        cc = {}
-        cc[self.CORE_STATE_SAVE]  = True
-        self.config[self.CORE][self.CORE_STATE] = cc
+        ccfg = {}
+        ccfg[self.CORE_STATE_SAVE]  = True
+        self.config[self.CORE][self.CORE_STATE] = ccfg
 
         if self.c(self.CONFIG_NODAEMON):
-            self.dbgout("[STATUS] Console log output is enabled via '--no-daemon' configuration")
             self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOCONS] = True
+            self.dbgout("Console log output is enabled via '--no-daemon' configuration")
         else:
             self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOCONS] = False
 
@@ -388,11 +501,14 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.config[self.CORE][self.CORE_RUNLOG][self.CORE_RUNLOG_SAVE] = True
         self.config[self.CORE][self.CORE_PSTATE][self.CORE_PSTATE_SAVE] = True
 
-    def _stage_setup_custom(self):
+    def _sub_stage_setup(self):
         """
-        Perform custom daemon related setup.
+        **SUBCLASS HOOK**: Perform additional custom setup actions in **setup** stage.
+
+        Gets called from :py:func:`BaseApp._stage_setup` and it is a **SETUP SUBSTAGE 06**.
         """
         for component in self.components:
+            self.dbgout("Configuring daemon component '{}'".format(component))
             component.setup(self)
 
     def _stage_setup_dump(self):
@@ -404,105 +520,121 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         super()._stage_setup_dump()
 
-        self.logger.debug("Daemon component list >>>\n{}".format(json.dumps(self.components, sort_keys=True, indent=4, default=_json_default)))
-        self.logger.debug("Registered event callbacks >>>\n{}".format(json.dumps(self.callbacks, sort_keys=True, indent=4, default=_json_default)))
+        self.logger.debug("Daemon component list >>>\n%s", json.dumps(self.components, sort_keys=True, indent=4, default=_json_default))
+        self.logger.debug("Registered event callbacks >>>\n%s", json.dumps(self.callbacks, sort_keys=True, indent=4, default=_json_default))
         self.logger.debug("Daemon component setup >>>\n")
         for component in self.components:
-            self.logger.debug(">>> {} >>>\n".format(component.__class__.__name__))
+            self.logger.debug(">>> %s >>>\n", component.__class__.__name__)
             component.setup_dump(self)
 
+
     #---------------------------------------------------------------------------
+
 
     def _hnd_signal_wakeup(self, signum, frame):
         """
-        Minimal signal handler - wakeup after sleep/pause.
+        Signal handler - wakeup after sleep/pause.
         """
-        self.logger.info("Wakeup after pause")
+        self.logger.info("Received wakeup signal (%s)", signum)
 
     def _hnd_signal_hup(self, signum, frame):
         """
-        Minimal signal handler - SIGHUP
+        Signal handler - **SIGHUP**
 
         Implementation of the handler is intentionally brief, actual signal
-        handling is done via scheduling and handling event 'signal_hup'.
+        handling is done via scheduling and handling event ``signal_hup``.
         """
-        self.logger.warning("Received signal 'SIGHUP'")
-        self.queue.schedule_next('signal_hup')
+        self.logger.warning("Received signal 'SIGHUP' (%s)", signum)
+        self.queue.schedule_next(self.EVENT_SIGNAL_HUP)
 
     def _hnd_signal_usr1(self, signum, frame):
         """
-        Minimal signal handler - SIGUSR1
+        Signal handler - **SIGUSR1**
 
         Implementation of the handler is intentionally brief, actual signal
-        handling is done via scheduling and handling event 'signal_usr1'.
+        handling is done via scheduling and handling event ``signal_usr1``.
         """
-        self.logger.info("Received signal 'SIGUSR1'")
-        self.queue.schedule_next('signal_usr1')
+        self.logger.info("Received signal 'SIGUSR1' (%s)", signum)
+        self.queue.schedule_next(self.EVENT_SIGNAL_USR1)
 
     def _hnd_signal_usr2(self, signum, frame):
         """
-        Minimal signal handler - SIGUSR2
+        Signal handler - **SIGUSR2**
 
         Implementation of the handler is intentionally brief, actual signal
-        handling is done via scheduling and handling event 'signal_usr2'.
+        handling is done via scheduling and handling event ``signal_usr2``.
         """
-        self.logger.info("Received signal 'SIGUSR2'")
-        self.queue.schedule_next('signal_usr2')
+        self.logger.info("Received signal 'SIGUSR2' (%s)", signum)
+        self.queue.schedule_next(self.EVENT_SIGNAL_USR2)
+
 
     #---------------------------------------------------------------------------
 
+
     def cbk_event_signal_hup(self, daemon, args = None):
         """
-        Event callback to handle signal - SIGHUP
+        Event callback for handling signal - **SIGHUP**
+
+        .. todo::
+
+            In the future this signal should be responsible for soft restart of
+            daemon process. Currently work in progress.
         """
         self.logger.warning("Handling event for signal 'SIGHUP'")
-        return (self.FLAG_CONTINUE, None)
+        return (self.FLAG_CONTINUE, args)
 
     def cbk_event_signal_usr1(self, daemon, args = None):
         """
-        Event callback to handle signal - SIGUSR1
+        Event callback for handling signal - **SIGUSR1**
+
+        This signal forces the daemon process to save the current runlog to JSON
+        file.
         """
         self.logger.info("Handling event for signal 'SIGUSR1'")
-        self.runlog_save(self.runlog)
-        return (self.FLAG_CONTINUE, None)
+        self._utils_runlog_save(self.runlog)
+        return (self.FLAG_CONTINUE, args)
 
     def cbk_event_signal_usr2(self, daemon, args = None):
         """
-        Event callback to handle signal - SIGUSR2
+        Event callback for handling signal - **SIGUSR2**
+
+        This signal forces the daemon process to save the current state to JSON
+        file. State is more verbose than runlog and it contains almost all
+        internal data.
         """
         self.logger.info("Handling event for signal 'SIGUSR2'")
         if self.c(self.CONFIG_NODAEMON):
-            self.state_dump(self._get_state())
+            self._utils_state_dump(self._get_state())
         else:
-            self.state_save(self._get_state())
-        return (self.FLAG_CONTINUE, None)
+            self._utils_state_save(self._get_state())
+        return (self.FLAG_CONTINUE, args)
 
     def cbk_event_log_statistics(self, daemon, args):
         """
         Periodical processing statistics logging.
         """
         self.queue.schedule_after(self.c(self.CONFIG_STATS_INTERVAL), self.EVENT_LOG_STATISTICS)
-        return (self.FLAG_CONTINUE, None)
+        return (self.FLAG_CONTINUE, args)
 
     #---------------------------------------------------------------------------
 
-    def send_signal(self, s):
+    def send_signal(self, sign):
         """
-        Send given signal to currently running daemon(s).
+        Send given signal to all currently running daemon(s).
         """
         pid = None
         try:
             pidfl = None # PID file list
             if not self.c(self.CONFIG_PARALEL):
-                pidfl = [self.get_fn_pidfile()]
+                pidfl = [self._get_fn_pidfile()]
             else:
-                pidfl = self.pidfiles_list()
+                pidfl = self._pidfiles_list()
 
             for pidfn in pidfl:
                 pid = pyzenkit.daemonizer.read_pid(pidfn)
                 if pid:
-                    print("Sending signal '{}' to process '{}' [{}]".format(SIGNALS_TO_NAMES_DICT.get(s, s), pid, pidfn))
-                    os.kill(pid, s)
+                    print("Sending signal '{}' to process '{}' [{}]".format(SIGNALS_TO_NAMES_DICT.get(sign, sign), pid, pidfn))
+                    os.kill(pid, sign)
 
         except FileNotFoundError:
             print("PID file '{}' does not exist".format(self.c(self.CONFIG_PID_FILE)))
@@ -514,7 +646,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             print("Process with PID '{}' does not exist".format(pid))
 
         except PermissionError:
-            print("Insufficient permissions to send signal '{}' to process '{}'".format(SIGNALS_TO_NAMES_DICT.get(s, s), pid))
+            print("Insufficient permissions to send signal '{}' to process '{}'".format(SIGNALS_TO_NAMES_DICT.get(sign, sign), pid))
 
     def cbk_action_signal_check(self):
         """
@@ -552,15 +684,17 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         self.send_signal(signal.SIGUSR2)
 
+
     #---------------------------------------------------------------------------
+
 
     def _get_state(self):
         """
-
+        Get current daemon state.
         """
         state = {
             'time':           time.time(),
-            'rc':             self.rc,
+            'rc':             self.retc,
             'config':         self.config,
             'paths':          self.paths,
             'pstate':         self.pstate,
@@ -575,7 +709,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
 
     def _get_statistics(self):
         """
-
+        Get current daemon statistics.
         """
         statistics = {
             'time':           time.time(),
@@ -585,7 +719,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             statistics['components'][component.__class__.__name__] = component.get_statistics(self)
         return statistics
 
-    def state_dump(self, state):
+    def _utils_state_dump(self, state):
         """
         Dump current daemon state.
 
@@ -595,20 +729,30 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         #self.logger.debug("Current daemon state >>>\n{}".format(json.dumps(state, sort_keys=True, indent=4)))
         print("Current daemon state >>>\n{}".format(self.json_dump(state, default=_json_default)))
 
-    def state_save(self, state):
+    def _utils_state_log(self, state):
+        """
+        Dump current daemon state.
+
+        Dump current daemon state to terminal (JSON).
+        """
+        # Dump current script state.
+        #self.logger.debug("Current daemon state >>>\n{}".format(json.dumps(state, sort_keys=True, indent=4)))
+        print("Current daemon state >>>\n{}".format(self.json_dump(state, default=_json_default)))
+
+    def _utils_state_save(self, state):
         """
         Save current daemon state.
 
         Save current daemon state to external file (JSON).
         """
-        sfn = self.get_fn_state()
-        self.dbgout("[STATUS] Saving current daemon state to file '{}'".format(sfn))
+        sfn = self._get_fn_state()
+        self.dbgout("Saving current daemon state to file '{}'".format(sfn))
         pprint.pprint(state)
-        self.dbgout("[STATUS] Current daemon state:\n{}".format(self.json_dump(state, default=_json_default)))
+        self.dbgout("Current daemon state:\n{}".format(self.json_dump(state, default=_json_default)))
         self.json_save(sfn, state, default=_json_default)
-        self.logger.info("Current daemon state saved to file '{}'".format(sfn))
+        self.logger.info("Current daemon state saved to file '%s'", sfn)
 
-    def pidfiles_list(self, **kwargs):
+    def _pidfiles_list(self, **kwargs):
         """
         List all available pidfiles.
         """
@@ -616,38 +760,42 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         pfn = os.path.join(self.paths['run'], '{}*.pid'.format(self.name))
         return sorted(glob.glob(pfn), reverse = reverse)
 
-    def get_fn_state(self):
+    def _get_fn_state(self):
         """
         Return the name of the state file for current process.
         """
         if not self.c(self.CONFIG_PARALEL):
             return self.c(self.CONFIG_STATE_FILE)
-        else:
-            fn = re.sub("\.state$",".{:05d}.state".format(os.getpid()), self.c(self.CONFIG_STATE_FILE))
-            self.dbgout("[STATUS] Paralel mode: using '{}' as state file".format(fn))
-            return fn
 
-    def get_fn_pidfile(self):
+        sfn = re.sub(r'\.state$',".{:05d}.state".format(os.getpid()), self.c(self.CONFIG_STATE_FILE))
+        self.dbgout("Paralel mode: using '{}' as state file".format(sfn))
+        return sfn
+
+    def _get_fn_pidfile(self):
         """
         Return the name of the pidfile for current process.
         """
         if not self.c(self.CONFIG_PARALEL):
             return self.c(self.CONFIG_PID_FILE)
-        else:
-            fn = re.sub("\.pid$",".{:05d}.pid".format(os.getpid()), self.c(self.CONFIG_PID_FILE))
-            self.dbgout("[STATUS] Paralel mode: using '{}' as pid file".format(fn))
-            return fn
 
-    def get_fn_runlog(self):
+        pfn = re.sub(r'\.pid$',".{:05d}.pid".format(os.getpid()), self.c(self.CONFIG_PID_FILE))
+        self.dbgout("Paralel mode: using '{}' as pid file".format(pfn))
+        return pfn
+
+    def _get_fn_runlog(self):
         """
         Return the name of the runlog file for current process.
         """
         if not self.c(self.CONFIG_PARALEL):
             return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.runlog".format(self.runlog[self.RLKEY_TSFSF]))
-        else:
-            fn = os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.{:05d}.runlog".format(self.runlog[self.RLKEY_TSFSF], os.getpid()))
-            self.dbgout("[STATUS] Paralel mode: using '{}' as runlog file".format(fn))
-            return fn
+
+        rfn = os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.{:05d}.runlog".format(self.runlog[self.RLKEY_TSFSF], os.getpid()))
+        self.dbgout("Paralel mode: using '{}' as runlog file".format(rfn))
+        return rfn
+
+
+    #---------------------------------------------------------------------------
+
 
     def get_events(self):
         """
@@ -666,7 +814,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         period = math.ceil(period)
         if period > 0:
-            self.logger.info("Waiting for '{}' seconds until next scheduled event".format(period))
+            self.logger.info("Waiting for '%d' seconds until next scheduled event", period)
             signal.signal(signal.SIGALRM, self._hnd_signal_wakeup)
             signal.alarm(period)
             signal.pause()
@@ -676,7 +824,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         Set the DONE flag to True.
         """
-        self.done = True
+        self.flag_done = True
 
     def _daemonize(self):
         """
@@ -684,14 +832,14 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         # Perform full daemonization
         if not self.c(self.CONFIG_NODAEMON):
-            self.dbgout("[STATUS] Performing full daemonization")
+            self.dbgout("Performing full daemonization")
             self.logger.info("Performing full daemonization")
 
             logs = pyzenkit.daemonizer.get_logger_files(self.logger)
             pyzenkit.daemonizer.daemonize(
                 chroot_dir     = self.c(self.CONFIG_CHROOT_DIR),
                 work_dir       = self.c(self.CONFIG_WORK_DIR),
-                pidfile        = self.get_fn_pidfile(),
+                pid_file       = self._get_fn_pidfile(),
                 umask          = self.c(self.CONFIG_UMASK),
                 files_preserve = logs,
                 signals        = {
@@ -706,13 +854,13 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
 
         # Perform simple daemonization
         else:
-            self.dbgout("[STATUS] Performing simple daemonization")
+            self.dbgout("Performing simple daemonization")
             self.logger.info("Performing simple daemonization")
 
             pyzenkit.daemonizer.daemonize_lite(
                 chroot_dir     = self.c(self.CONFIG_CHROOT_DIR),
                 work_dir       = self.c(self.CONFIG_WORK_DIR),
-                pidfile        = self.get_fn_pidfile(),
+                pid_file       = self._get_fn_pidfile(),
                 umask          = self.c(self.CONFIG_UMASK),
                 signals        = {
                     signal.SIGHUP:  self._hnd_signal_hup,
@@ -724,13 +872,12 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             self.logger.info("Simple daemonization done")
             self.runlog[self.RLKEY_PID] = os.getpid()
 
-
     def _event_loop(self):
         """
         Main event processing loop.
         """
-        self.done = False
-        while not self.done:
+        self.flag_done = False
+        while not self.flag_done:
             try:
                 (event, args) = self.queue.next()
                 if event:
@@ -741,23 +888,18 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
                         if flag != self.FLAG_CONTINUE:
                             break
                 else:
-                    w = self.queue.wait()
-                    if w > 0:
-                        self.wait(w)
-                    pass
+                    wait_time = self.queue.wait()
+                    if wait_time > 0:
+                        self.wait(wait_time)
+
             except QueueEmptyException:
                 self.logger.info("Event queue is empty, terminating")
-                self.done = True
-                pass
+                self.flag_done = True
 
-    def stage_process(self):
+    def _sub_stage_process(self):
         """
-        Script lifecycle stage: PROCESSING
-
-        Perform some real work (finally). Following method will call appropriate
-        callback method operation to service the selected operation.
+        **SUBCLASS HOOK**: Perform some actual processing in **process** stage.
         """
-        self.time_mark('stage_process_start', 'Start of the processing stage')
 
         try:
             self._daemonize()
@@ -776,12 +918,10 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             self.error("ZenAppException: {}".format(exc))
 
         except:
-            (t, v, tb) = sys.exc_info()
-            self.error("Exception: {}".format(v), tb = tb)
+            (exct, excv, exctb) = sys.exc_info()
+            self.error("Exception: {}".format(excv), trcb = exctb)
 
-        self.time_mark('stage_process_stop', 'End of the processing stage')
-
-class _DemoDaemonComponent(ZenDaemonComponent):
+class DemoDaemonComponent(ZenDaemonComponent):
     """
     Minimalistic class for demonstration purposes.
     """
@@ -803,31 +943,44 @@ class _DemoDaemonComponent(ZenDaemonComponent):
         time.sleep(1)
         return (daemon.FLAG_CONTINUE, None)
 
-class _DemoZenDaemon(ZenDaemon):
+class DemoZenDaemon(ZenDaemon):
     """
     Minimalistic class for demonstration purposes.
     """
-
     pass
 
-if __name__ == "__main__":
-    """
-    Perform the demonstration.
-    """
-    # Prepare the environment
-    if not os.path.isdir('/tmp/zendaemon.py'):
-        os.mkdir('/tmp/zendaemon.py')
-    pyzenkit.baseapp.BaseApp.json_save('/tmp/zendaemon.py.conf', {'test_a':1})
+#-------------------------------------------------------------------------------
 
-    daemon = _DemoZenDaemon(
-            path_cfg = '/tmp',
-            path_log = '/tmp',
-            path_tmp = '/tmp',
-            path_run = '/tmp',
-            description = 'DemoZenDaemon - generic daemon (DEMO)',
-            schedule = [('default',)],
-            components = [
-                _DemoDaemonComponent()
-            ]
-        )
-    daemon.run()
+#
+# Perform the demonstration.
+#
+if __name__ == "__main__":
+
+    # Prepare demonstration environment.
+    pyzenkit.baseapp.BaseApp.json_save('/tmp/demo-zendaemon.py.conf', {'test_a':1})
+    try:
+        os.mkdir('/tmp/demo-zendaemon.py')
+    except FileExistsError:
+        pass
+
+    ZENDAEMON = DemoZenDaemon(
+        name        = 'demo-zenscript.py',
+        description = 'DemoZenDaemon - Demonstration daemon',
+
+        #
+        # Configure required application paths to harmless locations.
+        #
+        path_bin = '/tmp',
+        path_cfg = '/tmp',
+        path_log = '/tmp',
+        path_tmp = '/tmp',
+        path_run = '/tmp',
+
+        default_no_daemon = True,
+
+        schedule = [('default',)],
+        components = [
+            DemoDaemonComponent()
+        ]
+    )
+    ZENDAEMON.run()

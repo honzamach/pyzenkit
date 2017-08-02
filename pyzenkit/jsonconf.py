@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #-------------------------------------------------------------------------------
-# Copyright (C) since 2016 Jan Mach <honza.mach.ml@gmail.com>
-# Use of this source is governed by the MIT license, see LICENSE file.
+# This file is part of PyZenKit package.
+#
+# Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
+# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Use of this package is governed by the MIT license, see LICENSE file.
+#
+# This project was initially written for personal use of the original author. Later
+# it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
 
 """
-This module provides following tools for manipulation with JSON configuration
-files:
+This module provides tools for manipulating JSON configuration files:
 
 * Simple writing of formated JSON configuration files
 * Simple reading of any JSON configuration files
-* Reading and merging of multiple JSON configuration files/directories
-* Support for single line comments in JSON files (``#``,``//``)
-* JSON schema validation
+* Merging multiple JSON configuration files or configuration directories
+* Support for single line comments in JSON files (``#``, ``//``)
+* Support for semi-automated JSON schema validation
 """
 
 
@@ -232,7 +237,7 @@ def config_load_n(config_files, schema = None):
 
     .. warning::
 
-        The merge is done using :py:func:``dict.update`` method and occurs only
+        The merge is done using :py:func:`dict.update` method and occurs only
         at highest level.
 
     :param str config_files: List of names of the source JSON config files to be loaded.
@@ -264,7 +269,7 @@ def config_load_dir(config_dir, schema = None, extension = '.json.conf'):
 
     .. warning::
 
-        The merge is done using :py:func:``dict.update`` method and occurs only
+        The merge is done using :py:func:`dict.update` method and occurs only
         at highest level.
 
     :param str config_dir: Names of the configuration directory.

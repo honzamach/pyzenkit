@@ -5,3 +5,5 @@ pyzenkit.zendaemon
 
 .. automodule:: pyzenkit.zendaemon
    :members:
+   :private-members:
+   :special-members:

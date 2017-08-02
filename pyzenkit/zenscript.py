@@ -1,36 +1,93 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #-------------------------------------------------------------------------------
-# Copyright (C) since 2016 Jan Mach <honza.mach.ml@gmail.com>
-# Use of this source is governed by the MIT license, see LICENSE file.
+# This file is part of PyZenKit package.
+#
+# Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
+# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Use of this package is governed by the MIT license, see LICENSE file.
+#
+# This project was initially written for personal use of the original author. Later
+# it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
+
 """
-Base implementation of generic one time execution script with cron support.
+This module provides base implementation of generic script with built-in support
+for regular executions. It builds on top of :py:mod:`pyzenkit.baseapp` module and
+adds couple of other usefull features:
+
+* Support for executing multiple different **commands**.
+* Support for regular executions.
+
+
+Script commands
+^^^^^^^^^^^^^^^
+
+Every script provides support for more, possibly similar, commands to be implemented
+within one script.
+
+
+Script execution modes
+^^^^^^^^^^^^^^^^^^^^^^
+
+Script execution supports following modes:
+
+* **regular**
+* **shell**
+* **default**
+
+In a **regular** mode the script is intended to be executed in regular time intervals
+from a *cron-like* service. The internal application configuration is forced into
+following state:
+
+* Console output is explicitly suppressed
+* Console logging level is explicitly forced to 'warning' level
+* Logging to log file is explicitly forced to be enabled
+* Runlog saving is explicitly forced to be enabled
+* Persistent state saving is explicitly forced to be enabled
+
+In a **shell** mode the script is intended to be executed by hand from interactive
+shell. It is intended to be used for debugging or experimental purposes and the
+internal application configuration is forced into following state:
+
+* Logging to log file is explicitly suppressed
+* Runlog saving is explicitly suppressed
+* Persistent state saving is explicitly suppressed
+
+
+Module contents
+^^^^^^^^^^^^^^^
+
+* :py:class:`ZenScriptException`
+* :py:class:`ZenScript`
+* :py:class:`DemoZenScript`
 """
+
+
+__author__  = "Jan Mach <honza.mach.ml@gmail.com>"
+
 
 import os
 import re
-import sys
-import json
 import time
-import math
-import subprocess
-import pprint
-
-# Generate the path to custom 'lib' directory
-lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-sys.path.insert(0, lib)
+import datetime
 
 #
 # Custom libraries.
 #
 import pyzenkit.baseapp
 
+
 #
 # Predefined constants for runtime intervals
 #
 RUN_INTERVALS = {
+    '5_minutes':      300,
+    '10_minutes':     600,
+    '15_minutes':     900,
+    '20_minutes':    1200,
+    '30_minutes':    1800,
     'hourly':        3600,
     '2_hourly':   (2*3600),
     '3_hourly':   (3*3600),
@@ -43,184 +100,314 @@ RUN_INTERVALS = {
     '4_weekly': (28*86400),
 }
 
-class ZenScriptException(pyzenkit.baseapp.ZenAppException):
+RE_TIMESTAMP = re.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})[Tt ]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]+))?([Zz]|(?:[+-][0-9]{2}:[0-9]{2}))$")
+
+
+#-------------------------------------------------------------------------------
+
+
+def t_datetime(val):
+    """
+    Convert/validate datetime. The value received by this conversion function may
+    be either ``datetime.datetime`` object (in that case no action will be done),
+    unix timestamp as ``float`` or datetime as RFC3339 string.
+
+    :param any val: Value to be converted/validated
+    :return: Datetime object
+    :rtype: datetime.datetime
+    :raises ValueError: if the value could not be converted to datetime.datetime object
+    """
+    # Maybe there is nothing to do
+    if isinstance(val, datetime.datetime):
+        return val
+
+    # Try numeric type
+    try:
+        return datetime.datetime.fromtimestamp(float(val))
+    except (TypeError, ValueError):
+        pass
+    # Try RFC3339 string
+    res = RE_TIMESTAMP.match(val)
+    if res is not None:
+        year, month, day, hour, minute, second = (int(n or 0) for n in res.group(*range(1, 7)))
+        us_str = (res.group(7) or '0')[:6].ljust(6, '0')
+        us_int = int(us_str)
+        zonestr = res.group(8)
+        zonespl = (0, 0) if zonestr in ['z', 'Z'] else [int(i) for i in zonestr.split(':')]
+        zonediff = datetime.timedelta(minutes = zonespl[0]*60+zonespl[1])
+        return datetime.datetime(year, month, day, hour, minute, second, us_int) - zonediff
+    else:
+        raise ValueError("Invalid datetime '{:s}'".format(val))
+
+
+#-------------------------------------------------------------------------------
+
+
+class ZenScriptException(pyzenkit.baseapp.ZenAppProcessException):
     """
     Describes problems specific to scripts.
     """
     pass
 
+
+#-------------------------------------------------------------------------------
+
+
 class ZenScript(pyzenkit.baseapp.BaseApp):
     """
-    Base implementation of generic one time execution script with cron support.
+    Base implementation of generic one-time execution script with built-in regular
+    execution interval support.
     """
 
     #
     # Class constants.
     #
 
-    # String patterns
+    # String patterns.
     PTRN_COMMAND_CBK = 'cbk_command_'
 
-    # List of possible configuration keys.
-    CONFIG_REGULAR  = 'regular'
-    CONFIG_SHELL    = 'shell'
-    CONFIG_INTERVAL = 'interval'
-    CONFIG_COMMAND  = 'command'
+    # List of configuration keys.
+    CONFIG_REGULAR           = 'regular'
+    CONFIG_SHELL             = 'shell'
+    CONFIG_COMMAND           = 'command'
+    CONFIG_INTERVAL          = 'interval'
+    CONFIG_ADJUST_THRESHOLDS = 'adjust_thresholds'
+    CONFIG_TIME_HIGH         = 'time_high'
+
+    # List of runlog keys.
+    RLKEY_COMMAND = 'command'
+
+
+    #---------------------------------------------------------------------------
+
 
     def _init_argparser(self, **kwargs):
         """
-        Initialize script command line argument parser.
+        Initialize application command line argument parser. This method overrides
+        the base implementation in :py:func:`baseapp.BaseApp._init_argparser` and
+        it must return valid :py:class:`argparse.ArgumentParser` object.
+
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Initialized argument parser object.
+        :rtype: argparse.ArgumentParser
         """
         argparser = super()._init_argparser(**kwargs)
 
-        # Setup mutually exclusive group.
-        group_a = argparser.add_mutually_exclusive_group()
-        # Option flag indicating that the script was executed via CRON tool.
-        # This option will make sure, that no output will be produced to terminal.
-        group_a.add_argument('--regular', help = 'regular script execution (flag)', action='store_true', default = None)
+        #
+        # Create and populate options group for common script arguments.
+        #
+        arggroup_script = argparser.add_argument_group('common script arguments')
 
-        # Option flag indicating that the script was executed manually via terminal.
-        # This optional will make sure, that no changes will be made in 'log',
-        # 'runlog' or 'state' files.
-        group_a.add_argument('--shell', help = 'manual script execution from shell (flag)', action = 'store_true', default = None)
+        # Setup mutually exclusive group for regular x shell mode option.
+        group_a = arggroup_script.add_mutually_exclusive_group()
 
-        # Option for setting the interval for regular script runs.
-        argparser.add_argument('--interval', help = 'define interval for regular executions', choices = RUN_INTERVALS.keys())
+        group_a.add_argument('--regular', help = 'operational mode: regular script execution (flag)', action='store_true', default = None)
+        group_a.add_argument('--shell',   help = 'operational mode: manual script execution from shell (flag)', action = 'store_true', default = None)
 
-        # Option for setting the desired command.
-        argparser.add_argument('--command', help = 'choose which command should be performed', choices = self._utils_detect_commands())
+        arggroup_script.add_argument('--command',           help = 'name of the script command to be executed', choices = self._utils_detect_commands(), type = str, default = None)
+        arggroup_script.add_argument('--interval',          help = 'time interval for regular executions', choices = RUN_INTERVALS.keys(), type = str, default = None)
+        arggroup_script.add_argument('--adjust-thresholds', help = 'round-up time interval threshols to interval size (flag)', action = 'store_true', default = None)
+        arggroup_script.add_argument('--time-high',         help = 'upper time interval threshold', type = float, default = None)
 
         return argparser
 
-    def _init_config(self, **kwargs):
+    def _init_config(self, cfgs, **kwargs):
         """
-        Initialize script configurations to default values.
-        """
-        config = super()._init_config(**kwargs)
+        Initialize default application configurations. This method overrides the
+        base implementation in :py:func:`baseapp.BaseApp._init_argparser` and it
+        adds additional configurations via ``cfgs`` parameter.
 
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param list cfgs: Additional set of configurations.
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Default configuration structure.
+        :rtype: dict
+        """
         cfgs = (
-            (self.CONFIG_REGULAR,  False),
-            (self.CONFIG_SHELL,    False),
-            (self.CONFIG_INTERVAL, None),
-            (self.CONFIG_COMMAND, self.get_default_command()),
-        )
-        for c in cfgs:
-            config[c[0]] = kwargs.pop('default_' + c[0], c[1])
-        return config
+            (self.CONFIG_REGULAR,           False),
+            (self.CONFIG_SHELL,             False),
+            (self.CONFIG_INTERVAL,          None),
+            (self.CONFIG_COMMAND,           self.get_default_command()),
+            (self.CONFIG_ADJUST_THRESHOLDS, False),
+            (self.CONFIG_TIME_HIGH,         time.time()),
+        ) + cfgs
+        return super()._init_config(cfgs, **kwargs)
+
+    def _configure_postprocess(self):
+        """
+        Perform configuration postprocessing and calculate core configurations.
+        This method overrides the base implementation in :py:func:`baseapp.BaseApp._configure_postprocess`.
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration`.
+        """
+        super()._configure_postprocess()
+
+        if self.c(self.CONFIG_SHELL):
+            self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOFILE] = False
+            self.dbgout("Logging to log file is explicitly suppressed by '--shell' configuration")
+
+            self.config[self.CORE][self.CORE_RUNLOG][self.CORE_RUNLOG_SAVE] = False
+            self.dbgout("Runlog saving is explicitly suppressed by '--shell' configuration")
+
+            self.config[self.CORE][self.CORE_PSTATE][self.CORE_PSTATE_SAVE] = False
+            self.dbgout("Persistent state saving is explicitly suppressed by '--shell' configuration")
+
+        elif self.c(self.CONFIG_REGULAR):
+            self.config[self.CONFIG_QUIET] = True
+            self.dbgout("Console output is explicitly suppressed by '--regular' configuration")
+
+            self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_LEVELC] = 'WARNING'
+            self.dbgout("Console logging level is explicitly forced to 'warning' by '--regular' configuration")
+
+            self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOFILE] = True
+            self.dbgout("Logging to log file is explicitly forced by '--regular' configuration")
+
+            self.config[self.CORE][self.CORE_RUNLOG][self.CORE_RUNLOG_SAVE] = True
+            self.dbgout("Runlog saving is explicitly forced by '--regular' configuration")
+
+            self.config[self.CORE][self.CORE_PSTATE][self.CORE_PSTATE_SAVE] = True
+            self.dbgout("Persistent state saving is explicitly forced by '--regular' configuration")
+
+        else:
+            self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOFILE] = True
+            self.config[self.CORE][self.CORE_RUNLOG][self.CORE_RUNLOG_SAVE]     = True
+            self.config[self.CORE][self.CORE_PSTATE][self.CORE_PSTATE_SAVE]     = True
+
+    def _sub_stage_process(self):
+        """
+        **SUBCLASS HOOK**: Perform some actual processing in **process** stage.
+        """
+        # Determine, which command to execute.
+        cmdname = self.c(self.CONFIG_COMMAND)
+        self.runlog[self.RLKEY_COMMAND] = cmdname
+
+        # Execute.
+        self.execute_script_command(cmdname)
+
 
     #---------------------------------------------------------------------------
+
 
     def _utils_detect_commands(self):
         """
         Returns the sorted list of all available commands current script is capable
         of performing. The detection algorithm is based on string analysis of all
-        available methods. Any method starting with string 'cbk_command_' will
-        be appended to the list, lowercased and with '_' characters replaced with '-'.
+        available methods. Any method starting with string ``cbk_command_`` will
+        be appended to the list, lowercased and with ``_`` characters replaced with ``-``.
         """
         ptrn = re.compile(self.PTRN_COMMAND_CBK)
         attrs = sorted(dir(self))
         result = []
-        for a in attrs:
-            if not callable(getattr(self, a)):
+        for atr in attrs:
+            if not callable(getattr(self, atr)):
                 continue
-            match = ptrn.match(a)
+            match = ptrn.match(atr)
             if match:
-                result.append(a.replace(self.PTRN_COMMAND_CBK,'').replace('_','-').lower())
+                result.append(atr.replace(self.PTRN_COMMAND_CBK,'').replace('_','-').lower())
         return result
 
-    def get_default_command(self):
-        """
-        Return the name of the default operation. This method must be present and
-        overriden in subclass and must return the name of desired default operation.
-        Following code is just a reminder for programmer to not forget to implement
-        this method.
-        """
-        raise Exception("get_default_command() method must be implemented in subclass")
-
-    def calculate_interval_thresholds(self, thr_type = 'daily', time_cur = None, flag_floor = False, merge_count = 1, skip_count = 0, last_ts = None):
-        """
-        Calculate time thresholds based on following optional arguments:
-        """
-        if not thr_type in RUN_INTERVALS:
-            raise Exception("Invalid threshold interval '{}'".format(thr_type))
-        interval = RUN_INTERVALS[thr_type]
-
-        time_l = 0  # Lower threshold.
-        time_h = 0  # Upper threshold.
-
-        # Define the upper interval threshold as current timestamp, or use the
-        # one given as argument.
-        time_h = time_cur
-        if not time_h:
-            time_h = math.floor(time.time());
-
-        # Adjust the upper interval threshold.
-        if flag_floor:
-            time_h = time_h - (time_h % interval)
-
-        # Calculate the lower time threshold.
-        time_l = time_h - interval
-
-        return (time_l, time_h);
 
     #---------------------------------------------------------------------------
 
-    def _configure_postprocess(self):
-        """
-        Setup internal script core mechanics.
-        """
-        super()._configure_postprocess()
 
-        if self.c(self.CONFIG_SHELL):
-            self.dbgout("[STATUS] Logging to log file is suppressed via '--shell' configuration")
-            self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOFILE] = False
-            self.dbgout("[STATUS] Runlog saving is suppressed via '--shell' configuration")
-            self.config[self.CORE][self.CORE_RUNLOG][self.CORE_RUNLOG_SAVE] = False
-            self.dbgout("[STATUS] Persistent state saving is suppressed via '--shell' configuration")
-            self.config[self.CORE][self.CORE_PSTATE][self.CORE_PSTATE_SAVE] = False
+    def get_default_command(self):
+        """
+        Return the name of the default command. This method must be present and
+        overriden in subclass and must return the name of desired default command.
+        Following code is just a reminder for developer to not forget to implement
+        this method.
+
+        :return: Name of the default command.
+        :rtype: str
+        """
+        raise NotImplementedError("This method must be implemented in subclass")
+
+    def execute_script_command(self, command_name):
+        """
+        Execute given script command and store the received results into script runlog.
+
+        Following method will call appropriate callback method to service the
+        requested script command.
+
+        Name of the callback method is generated from the name of the command by
+        prepending string ``cbk_command_`` and replacing all ``-`` with ``_``.
+        """
+        command_name    = command_name.lower().replace('-','_')
+        command_cbkname = '{}{}'.format(self.PTRN_COMMAND_CBK, command_name)
+        self.dbgout("Executing callback '{}' for script command '{}'".format(command_cbkname, command_name))
+
+        cbk = getattr(self, command_cbkname, None)
+        if cbk:
+            self.logger.info("Executing script command '%s'", command_name)
+            self.runlog[command_name] = cbk()
         else:
-            self.config[self.CORE][self.CORE_LOGGING][self.CORE_LOGGING_TOFILE] = True
-            self.config[self.CORE][self.CORE_RUNLOG][self.CORE_RUNLOG_SAVE] = True
-            self.config[self.CORE][self.CORE_PSTATE][self.CORE_PSTATE_SAVE] = True
+            raise ZenScriptException("Invalid script command '{}', callback '{}' does not exist".format(command_name, command_cbkname))
 
-    def stage_process(self):
+    def calculate_interval_thresholds(self, time_high = None, interval = 'daily', adjust = False):
         """
-        Script lifecycle stage: PROCESSING
+        Calculate time interval thresholds based on given upper time interval boundary and
+        time interval size.
 
-        Perform some real work (finally). Following method will call appropriate
-        callback method operation to service the selected operation.
+        :param int time_high: Unix timestamp for upper time threshold.
+        :param str interval: Time interval, one of the interval defined in :py:mod:`pyzenkit.zenscript`.
+        :param bool adjust: Adjust time thresholds to round values (floor).
+        :return: Lower and upper time interval boundaries.
+        :rtype: tuple of datetime.datetime
         """
-        self.time_mark('stage_process_start', 'Start of the processing stage')
+        if interval not in RUN_INTERVALS:
+            raise ValueError("Invalid time interval '{}', valid values are: '{}'".format(interval, ','.join(RUN_INTERVALS.keys())))
+        interval_delta = RUN_INTERVALS[interval]
 
-        try:
-            # Determine, which command to execute.
-            self.runlog[self.RLKEY_COMMAND] = self.c(self.CONFIG_COMMAND)
-            opname = self.c(self.CONFIG_COMMAND)
-            opcbkname = self.PTRN_COMMAND_CBK + opname.lower().replace('-','_')
-            self.logger.debug("Performing script command '{}' with method '{}'".format(opname, opcbkname))
+        if not time_high:
+            time_high = time.time()
 
-            cbk = getattr(self, opcbkname, None)
-            if cbk:
-                self.logger.info("Executing command '{}'".format(opname))
-                self.runlog[opname] = cbk()
-            else:
-                raise pyzenkit.baseapp.ZenAppProcessException("Invalid command '{}', callback '{}' does not exist".format(opname, opcbkname))
+        time_high = t_datetime(time_high)
+        time_low  = time_high - datetime.timedelta(seconds=interval_delta)
+        self.logger.debug("Calculated time interval thresholds: '%s' -> '%s' (%s, %i -> %i)", str(time_low), str(time_high), interval, time_low.timestamp(), time_high.timestamp())
 
-        except subprocess.CalledProcessError as err:
-            self.error("System command error: {}".format(err))
+        if adjust:
+            ts_h = t_datetime(time_high.timestamp() - (time_high.timestamp() % interval_delta))
+            ts_l = ts_h - datetime.timedelta(seconds=interval_delta)
+            time_high = ts_h
+            time_low  = ts_l
+            self.logger.debug("Adjusted time interval thresholds: '%s' -> '%s' (%s, %i -> %i)", str(time_low), str(time_high), interval, time_low.timestamp(), time_high.timestamp())
 
-        except pyzenkit.baseapp.ZenAppProcessException as exc:
-            self.error("ZenAppProcessException: {}".format(exc))
+        return (time_low, time_high)
 
-        except pyzenkit.baseapp.ZenAppException as exc:
-            self.error("ZenAppException: {}".format(exc))
 
-        self.time_mark('stage_process_stop', 'End of the processing stage')
-
-class _DemoZenScript(ZenScript):
+class DemoZenScript(ZenScript):
     """
     Minimalistic class for demonstration purposes.
     """
+
+    def __init__(self, name = None, description = None):
+        """
+        Initialize demonstration script. This method overrides the base
+        implementation in :py:func:`baseapp.BaseApp.__init__` and it aims to
+        even more simplify the script object creation.
+
+        :param str name: Optional script name.
+        :param str description: Optional script description.
+        """
+        name        = 'demo-zenscript.py' if not name else name
+        description = 'DemoZenScript - Demonstration script' if not description else description
+
+        super().__init__(
+            name        = name,
+            description = description,
+
+            #
+            # Configure required application paths to harmless locations.
+            #
+            path_bin = '/tmp',
+            path_cfg = '/tmp',
+            path_log = '/tmp',
+            path_tmp = '/tmp',
+            path_run = '/tmp'
+        )
 
     def get_default_command(self):
         """
@@ -230,36 +417,67 @@ class _DemoZenScript(ZenScript):
 
     def cbk_command_default(self):
         """
-        Default script operation.
+        Default script command.
         """
-        # Log something to show we have reached this point of execution.
-        self.logger.info("Demo implementation for default command")
+        # Update the persistent state to view the changes.
+        self.pstate['counter'] = self.pstate.get('counter', 0) + 1
 
-        # Test direct console output with conjunction with verbosity
+        # Log something to show we have reached this point of execution.
+        self.logger.info("Demonstration implementation for default script command")
+        self.logger.info("Try executing this demo with following parameters:")
+        self.logger.info("* python3 pyzenkit/zenscript.py --help")
+        self.logger.info("* python3 pyzenkit/zenscript.py --verbose")
+        self.logger.info("* python3 pyzenkit/zenscript.py --verbose --verbose")
+        self.logger.info("* python3 pyzenkit/zenscript.py --verbose --verbose --verbose")
+        self.logger.info("* python3 pyzenkit/zenscript.py --debug")
+        self.logger.info("* python3 pyzenkit/zenscript.py --log-level debug")
+        self.logger.info("* python3 pyzenkit/zenscript.py --pstate-dump")
+        self.logger.info("* python3 pyzenkit/zenscript.py --runlog-dump")
+        self.logger.info("* python3 pyzenkit/zenscript.py --command alternative")
+        self.logger.info("Number of runs from persistent state: '%d'", self.pstate.get('counter'))
+
+        # Test direct console output with conjunction with verbosity levels.
         self.p("Hello world")
         self.p("Hello world, verbosity level 1", 1)
         self.p("Hello world, verbosity level 2", 2)
         self.p("Hello world, verbosity level 3", 3)
 
+        return { 'result': self.RESULT_SUCCESS, 'data': 5 }
+
+    def cbk_command_alternative(self):
+        """
+        Alternative script command.
+        """
         # Update the persistent state to view the changes.
         self.pstate['counter'] = self.pstate.get('counter', 0) + 1
 
-        return self.RESULT_SUCCESS
+        # Log something to show we have reached this point of execution.
+        self.logger.info("Demonstration implementation for alternative script command")
+        self.logger.info("Number of runs from persistent state: '%d'", self.pstate.get('counter'))
 
+        # Test direct console output with conjunction with verbosity levels.
+        self.p("Hello world")
+        self.p("Hello world, verbosity level 1", 1)
+        self.p("Hello world, verbosity level 2", 2)
+        self.p("Hello world, verbosity level 3", 3)
+
+        return { 'result': self.RESULT_SUCCESS, 'data': 100 }
+
+
+#-------------------------------------------------------------------------------
+
+#
+# Perform the demonstration.
+#
 if __name__ == "__main__":
-    """
-    Perform the demonstration.
-    """
-    # Prepare the environment
-    if not os.path.isdir('/tmp/zenscript.py'):
-        os.mkdir('/tmp/zenscript.py')
-    pyzenkit.baseapp.BaseApp.json_save('/tmp/zenscript.py.conf', {'test_a':1})
 
-    script = _DemoZenScript(
-            path_cfg = '/tmp',
-            path_log = '/tmp',
-            path_tmp = '/tmp',
-            path_run = '/tmp',
-            description = 'DemoZenScript - generic script (DEMO)'
-        )
-    script.run()
+    # Prepare demonstration environment.
+    SCR_NAME = 'demo-zenscript.py'
+    pyzenkit.baseapp.BaseApp.json_save('/tmp/{}.conf'.format(SCR_NAME), {'test_a':1})
+    try:
+        os.mkdir('/tmp/{}'.format(SCR_NAME))
+    except FileExistsError:
+        pass
+
+    ZENSCRIPT = DemoZenScript(SCR_NAME)
+    ZENSCRIPT.run()

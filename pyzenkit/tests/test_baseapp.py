@@ -1,9 +1,16 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #-------------------------------------------------------------------------------
-# Copyright (C) since 2016 Jan Mach <honza.mach.ml@gmail.com>
-# Use of this source is governed by the MIT license, see LICENSE file.
+# This file is part of PyZenKit package.
+#
+# Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
+# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Use of this package is governed by the MIT license, see LICENSE file.
+#
+# This project was initially written for personal use of the original author. Later
+# it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
+
 
 import unittest
 from unittest.mock import Mock, MagicMock, call
@@ -13,21 +20,24 @@ import os
 import sys
 import shutil
 
+
 # Generate the path to custom 'lib' directory
 lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.insert(0, lib)
 
 import pyzenkit.baseapp
 
+
 #
 # Global variables
 #
-SCR_NAME       = 'test_baseapp.py'                # Name of the script process
+APP_NAME       = 'test-baseapp.py'                # Name of the application process
 JSON_FILE_NAME = '/tmp/script-state.json'         # Name of the test JSON file
-CFG_FILE_NAME  = '/tmp/{}.conf'.format(SCR_NAME)  # Name of the script configuration file
-CFG_DIR_NAME   = '/tmp/{}'.format(SCR_NAME)       # Name of the script configuration directory
+CFG_FILE_NAME  = '/tmp/{}.conf'.format(APP_NAME)  # Name of the application configuration file
+CFG_DIR_NAME   = '/tmp/{}'.format(APP_NAME)       # Name of the application configuration directory
 
-class TestPyzenkitScript(unittest.TestCase):
+
+class TestPyzenkitBaseApp(unittest.TestCase):
 
     def setUp(self):
         pyzenkit.baseapp.BaseApp.json_save(CFG_FILE_NAME, {'test': 'x'})
@@ -36,13 +46,9 @@ class TestPyzenkitScript(unittest.TestCase):
         except FileExistsError:
             pass
 
-        self.obj = pyzenkit.baseapp._DemoBaseApp(
-            name = SCR_NAME,
-            path_cfg = '/tmp',
-            path_log = '/tmp',
-            path_tmp = '/tmp',
-            path_run = '/tmp',
-            description = 'DemoBaseApp - generic base script (DEMO)'
+        self.obj = pyzenkit.baseapp.DemoBaseApp(
+            name        = APP_NAME,
+            description = 'TestBaseApp - Testing application'
         )
     def tearDown(self):
         os.remove(CFG_FILE_NAME)
@@ -50,29 +56,61 @@ class TestPyzenkitScript(unittest.TestCase):
 
     def test_01_utils(self):
         """
-        Perform tests of generic script utils.
+        Perform tests of generic application utils.
         """
-        # Test the saving of JSON files
-        self.assertEqual(self.obj.name, SCR_NAME)
+        self.maxDiff = None
 
-        # Test the saving of JSON files
+        # Test the name generation capabilities.
+        self.assertEqual(self.obj.name, APP_NAME)
+
+        # Test the saving of JSON files.
         self.assertTrue(self.obj.json_save(JSON_FILE_NAME, { "test": 1 }))
 
-        # Test that the JSON file was really created
+        # Test that the JSON file was really created.
         self.assertTrue(os.path.isfile(JSON_FILE_NAME))
 
-        # Test the loading of JSON files
+        # Test the loading of JSON files.
         self.assertEqual(self.obj.json_load(JSON_FILE_NAME), { "test": 1 })
 
-        # Remove the JSON file we are done with
+        # Remove the JSON file we are done with.
         os.remove(JSON_FILE_NAME)
 
-    def test_02_basic(self):
+    def test_02_argument_parsing(self):
         """
-        Perform the basic operativity tests.
+        Perform tests of argument parsing.
         """
+        self.maxDiff = None
+
+        # Test argument parsing.
+        argp = self.obj._init_argparser()
+        self.assertEqual(vars(argp.parse_args(['--verbose'])), {'action': None,
+            'config_dir': None,
+            'config_file': None,
+            'debug': None,
+            'group': None,
+            'input': None,
+            'limit': None,
+            'log_file': None,
+            'log_level': None,
+            'name': None,
+            'pstate_dump': None,
+            'pstate_file': None,
+            'pstate_log': None,
+            'quiet': None,
+            'runlog_dir': None,
+            'runlog_dump': None,
+            'runlog_log': None,
+            'user': None,
+            'verbosity': 1
+        })
+
+    def test_03_plugin(self):
+        """
+        Perform tests of plugin mode.
+        """
+        self.maxDiff = None
+
         self.obj.plugin()
 
 if __name__ == "__main__":
     unittest.main()
-

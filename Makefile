@@ -5,7 +5,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
-SPHINXPROJ    = ZenKit-PythonScriptAndDaemonToolkit
+SPHINXPROJ    = PyZenKit-Python3ScriptAndDaemonToolkit
 SOURCEDIR     = .
 BUILDDIR      = doc/_build
 

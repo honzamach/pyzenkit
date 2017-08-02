@@ -1,37 +1,245 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #-------------------------------------------------------------------------------
-# Copyright (C) since 2016 Jan Mach <honza.mach.ml@gmail.com>
-# Use of this source is governed by the MIT license, see LICENSE file.
+# This file is part of PyZenKit package.
+#
+# Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
+# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Use of this package is governed by the MIT license, see LICENSE file.
+#
+# This project was initially written for personal use of the original author. Later
+# it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
-"""
-Implementation of generic processing script/daemon/application.
-
-This class provides base implementation of generic processing application with many
-usefull features including (but not limited to) following:
-
-* Optional configuration via external JSON configuration file
-* Optional configuration via configuration directory
-* Optional configuration via command line arguments and options
-* Optional logging to console
-* Optional logging to text file
-* Optional persistent state storage between script executions
-* Optional runlog saving after each script execution
-* Integrated runlog analysis tools
 
 """
+This module provides base implementation of generic processing application with
+many usefull features including (but not limited to) following:
+
+Application configuration service
+    The base application provides tools for loading configurations from multiple
+    sources and merging it into single dictionary. Currently the following
+    configuration sources are available:
+
+    * Optional configuration via configuration directory.
+    * Optional configuration via external JSON configuration file.
+    * Optional configuration via command line arguments and options.
+
+Logging service
+    The base application is capable of automated setup of logging service based
+    on configuration values into followin destinations:
+
+    * Optional logging to console.
+    * Optional logging to text file.
+
+Persistent state service
+    The base application contains optinal persistent state feature, which is capable
+    of storing data between multiple executions. Simple JSON files are used for the
+    data storage.
+
+Application runlog service
+    The base application provides optional runlog service, which is a intended to
+    provide storage for relevant data and results during the processing and enable
+    further analysis later. Simple JSON files are used for the data storage.
+
+Plugin system
+    The application provides tools for writing and using plugins, that can be used
+    to further enhance the functionality of application and improve code reusability
+    by composing the application from smaller building blocks.
+
+Application actions
+    The application provides tools for quick actions. These are intended to be used
+    for application management tasks such as vieving or validating configuration
+    without executing the application itself, listing and evaluating runlogs and
+    so on. There is a number of built-in actions and more can be implemented very
+    easily.
+
+
+Application usage modes
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Applications created based on this framework can be utilized in two work modes:
+
+* **run**
+* **plugin**
+
+In a **run** mode all application features are configured and desired action or
+application code is immediatelly executed.
+
+In a **plugin** mode the application is only configured and any other interactions
+must be performed manually. This approach enables users to plug the apllication into
+another one on a wider scope. One example use case may be the implementation of an
+user command line interface that controls multiple applications (much like *git*).
+
+
+Application life-cycle
+^^^^^^^^^^^^^^^^^^^^^^
+
+Depending on the mode of operation (**run** or **plugin**) the application code goes
+through a different set of stages during its life span.
+
+In a **plugin** mode the following stages are performed:
+
+* **__init__**
+* **setup**
+
+In a **run** mode the following stages are performed in case some *action* is being
+handled:
+
+* **__init__**
+* **setup**
+* **action**
+
+In a **run** mode the following stages are performed in case of normal processing:
+
+* **__init__**
+* **setup**
+* **process**
+* **evaluate**
+* **teardown**
+
+Stage __init__
+``````````````
+
+The **__init__** stage is responsible for creating and basic initialization of
+application object. No exception should occur or be raised during the initialization
+stage and the code should always work regardles of environment setup, so no files
+should be opened, etc. Any exception during this stage will intentionally not get
+handled in any way and result in full traceback dump and immediate application
+termination.
+
+These more advanced setup tasks should be performed during the
+**setup** stage, which is capable of intelligent catching and displaying/logging
+of any exceptions. There are following substages in this stage:
+
+* init command line argument parser: :py:func:`BaseApp._init_argparser`
+* parse command line arguments: :py:func:`BaseApp._parse_cli_arguments`
+* initialize application name: :py:func:`BaseApp._init_name`
+* initialize filesystem paths: :py:func:`BaseApp._init_paths`
+* initialize application runlog: :py:func:`BaseApp._init_runlog`
+* initialize default configurations: :py:func:`BaseApp._init_config`
+* subclass hook for additional initializations: :py:func:`BaseApp._sub_stage_init`
+
+Any of the previous substages may be overriden in a subclass to enhance or alter
+the functionality, but always be sure of what you are doing.
+
+Stage *setup*
+`````````````
+
+The **setup** stage is responsible for bootstrapping the whole application. Any failure
+It
+consists of couple of substages:
+
+* setup configuration: :py:func:`BaseApp._stage_setup_configuration`
+* setup user and group privileges: :py:func:`BaseApp._stage_setup_privileges`
+* setup logging: :py:func:`BaseApp._stage_setup_logging`
+* setup persistent state: :py:func:`BaseApp._stage_setup_pstate`
+* setup plugins: :py:func:`BaseApp._stage_setup_plugins`
+* subclass hook for additional setup: :py:func:`BaseApp._sub_stage_setup`
+* setup dump: :py:func:`BaseApp._stage_setup_dump`
+
+Stage *action*
+``````````````
+
+The **action** stage takes care of executing built-in actions.
+
+Stage *process*
+```````````````
+
+The **process** stage is supposed to perform any required task and process runlog.
+
+Stage *evaluate*
+````````````````
+
+The **evaluate** stage is supposed to perform any evaluation of current runlog.
+
+Stage *teardown*
+````````````````
+
+The **teardown** stage is supposed to perform any cleanup tasks before the application
+exits. It consists of couple of substages:
+
+* :py:func:`BaseApp._sub_stage_teardown`
+* :py:func:`BaseApp._stage_teardown_pstate`
+* :py:func:`BaseApp._stage_teardown_runlog`
+
+
+Programming API
+^^^^^^^^^^^^^^^
+
+* public attributes:
+
+    * ``self.name``
+    * ``self.paths``
+    * ``self.runlog``
+    * ``self.config``
+    * ``self.logger``
+    * ``self.pstate``
+    * ``self.retc``
+
+* public methods:
+
+    * ``self.c``
+    * ``self.cc``
+    * ``self.p``
+    * ``self.dbgout``
+    * ``self.excout``
+    * ``self.error``
+    * ``self.json_dump``
+    * ``self.json_load``
+    * ``self.json_save``
+
+
+Application actions
+^^^^^^^^^^^^^^^^^^^
+
+* *config-view*
+* *runlog-dump*
+* *runlog-view*
+* *runlogs-dump*
+* *runlogs-list*
+* *runlogs-evaluate*
+
+
+Subclass extension hooks
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+* :py:func:`BaseApp._sub_stage_init`
+* :py:func:`BaseApp._sub_stage_setup`
+* :py:func:`BaseApp._sub_stage_process`
+* :py:func:`BaseApp._sub_stage_teardown`
+* :py:func:`BaseApp._sub_runlog_analyze`
+* :py:func:`BaseApp._sub_runlog_format_analysis`
+* :py:func:`BaseApp._sub_runlogs_evaluate`
+* :py:func:`BaseApp._sub_runlogs_format_evaluation`
+
+
+Module contents
+^^^^^^^^^^^^^^^
+
+* :py:class:`ZenAppException`
+
+    * :py:class:`ZenAppSetupException`
+    * :py:class:`ZenAppProcessException`
+    * :py:class:`ZenAppEvaluateException`
+    * :py:class:`ZenAppTeardownException`
+
+* :py:class:`ZenAppPlugin`
+* :py:class:`BaseApp`
+* :py:class:`DemoBaseApp`
+"""
+
+
+__author__  = "Jan Mach <honza.mach.ml@gmail.com>"
+
 
 import os
 import sys
 import pwd
 import grp
 import re
-import shutil
 import glob
-import math
 import time
-import json
 import argparse
 import logging
 import logging.handlers
@@ -40,76 +248,140 @@ import subprocess
 import datetime
 import traceback
 
-# Generate the path to custom 'lib' directory
-lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
-sys.path.insert(0, lib)
-
 #
 # Custom libraries.
 #
 import pyzenkit.jsonconf
 import pydgets.widgets
 
-#
-# Global variables.
-#
 
-# Global flag, that turns on additional debugging messages.
-FLAG_DEBUG = False
+#-------------------------------------------------------------------------------
 
-def _json_default(o):
-    return repr(o)
 
 class ZenAppException(Exception):
     """
-    Base class for all ZenApp specific exceptions.
+    Base class for all ZenApp custom exceptions.
 
-    These exceptions will be catched, error will be displayed to the user and
-    script will attempt to gracefully terminate without dumping the traceback
-    to the user. These exceptions should be used for anticipated errors, which
-    can occur during normal script execution and do not mean there is anything
-    wrong with the script itself, for example missing configuration file, etc...
+    When appropriate, these exceptions will be catched, error will be displayed
+    to the user and the application will attempt to gracefully terminate without
+    dumping the traceback visibly to the user. These exceptions should be used
+    for anticipated errors, which can occur during normal application execution and
+    do not mean there is anything wrong with the code itself, for example missing
+    configuration file, etc...
     """
-    def __init__(self, description):
-        self._description = description
+    def __init__(self, description, **params):
+        """
+        Initialize new exception with given description and optional additional
+        parameters.
+
+        :param str description: Description of the problem.
+        :param params: Optional additional parameters.
+        """
+        super().__init__()
+
+        self.description = description
+        self.params = params
+
     def __str__(self):
-        return repr(self._description)
+        """
+        Operator override for automatic string output.
+        """
+        return repr(self.description)
 
 class ZenAppSetupException(ZenAppException):
     """
-    Describes problems or errors during the script 'setup' phase.
+    Describes problems or errors that occur during the **setup** phase.
     """
     pass
 
 class ZenAppProcessException(ZenAppException):
     """
-    Describes problems or errors during the script 'process' phase.
+    Describes problems or errors that occur during the **process** phase.
     """
     pass
 
 class ZenAppEvaluateException(ZenAppException):
     """
-    Describes problems or errors during the script 'evaluate' phase.
+    Describes problems or errors that occur during the **evaluate** phase.
     """
     pass
 
 class ZenAppTeardownException(ZenAppException):
     """
-    Describes problems or errors during the script 'teardown' phase.
+    Describes problems or errors that occur during the **teardown** phase.
     """
     pass
 
+
+#-------------------------------------------------------------------------------
+
+
+class ZenAppPlugin:
+    """
+    Base class for all ZenApp application plugins. Plugins can be used to further
+    enhance the code reusability by composing the application from smaller building
+    blocks.
+    """
+
+    def __str__(self):
+        """
+        Operator override for automatic string output.
+        """
+        return self.__class__.__name__
+
+    def init_argparser(self, app, argparser, **kwargs):
+        """
+        Callback to be called during argparser initialization phase.
+        """
+        return argparser
+
+    def init_config(self, app, config, **kwargs):
+        """
+        Callback to be called during default configuration initialization phase.
+        """
+        return config
+
+    def init_runlog(self, app, runlog, **kwargs):
+        """
+        Callback to be called during runlog initialization phase.
+        """
+        return runlog
+
+    def configure(self, app):
+        """
+        Callback to be called during configuration phase (after initialization).
+        """
+        raise NotImplementedError('This method must be implemented in subclass')
+
+    def setup(self, app):
+        """
+        Callback to be called during setup phase (after setup).
+        """
+        raise NotImplementedError('This method must be implemented in subclass')
+
+
+#-------------------------------------------------------------------------------
+
+
 class BaseApp:
     """
-    Base implementation of generic executable script.
-
-    This class attempts to provide robust and stable framework, which can be used
-    to writing all kinds of scripts or daemons. This is however low level framework
-    and should not be used directly, use the zenscript.py or zendaemon.py
-    modules for writing custom scripts or daemons respectively.
+    Base implementation of generic executable application. This class attempts to
+    provide robust and stable framework, which can be used to writing all kinds
+    of scripts or daemons. Although is is usable, this is however a low level framework
+    and should not be used directly, use the :py:mod:`pyzenkit.zenscript` or :py:mod:`pyzenkit.zendaemon`
+    modules for writing custom scripts or daemons respectively. That being said,
+    the :py:class:`pyzenkit.baseapp.DemoBaseApp` class is an example implementation
+    of using this class directly without any additional overhead.
     """
 
-    # List of all possible return codes
+    #
+    # Class constants.
+    #
+
+    # Global flag, that turns on additional debugging messages.
+    FLAG_DEBUG = False
+
+    # List of all possible return codes.
     RC_SUCCESS = os.EX_OK
     RC_FAILURE = 1
 
@@ -117,10 +389,11 @@ class BaseApp:
     RESULT_SUCCESS = 'success'
     RESULT_FAILURE = 'failure'
 
-    # String patterns
+    # String patterns.
     PTRN_ACTION_CBK  = 'cbk_action_'
+    PTRN_APP_NAME    = '^[_a-zA-Z][-_a-zA-Z0-9.]*$'
 
-    # Paths
+    # Paths.
     PATH_BIN = 'bin'
     PATH_CFG = 'cfg'
     PATH_LOG = 'log'
@@ -130,8 +403,8 @@ class BaseApp:
     # List of core configuration keys.
     CORE                = '__core__'
     CORE_LOGGING        = 'logging'
-    CORE_LOGGING_TOFILE = 'tofile'
-    CORE_LOGGING_TOCONS = 'toconsole'
+    CORE_LOGGING_TOFILE = 'to_file'
+    CORE_LOGGING_TOCONS = 'to_console'
     CORE_LOGGING_LEVEL  = 'level'
     CORE_LOGGING_LEVELF = 'level_file'
     CORE_LOGGING_LEVELC = 'level_console'
@@ -140,12 +413,15 @@ class BaseApp:
     CORE_RUNLOG         = 'runlog'
     CORE_RUNLOG_SAVE    = 'save'
 
-    # List of possible configuration keys.
+    # List of configuration keys.
+    CONFIG_PLUGINS     = 'plugins'
     CONFIG_DEBUG       = 'debug'
     CONFIG_QUIET       = 'quiet'
     CONFIG_VERBOSITY   = 'verbosity'
     CONFIG_RUNLOG_DUMP = 'runlog_dump'
     CONFIG_PSTATE_DUMP = 'pstate_dump'
+    CONFIG_RUNLOG_LOG  = 'runlog_log'
+    CONFIG_PSTATE_LOG  = 'pstate_log'
     CONFIG_NAME        = 'name'
     CONFIG_ACTION      = 'action'
     CONFIG_INPUT       = 'input'
@@ -159,20 +435,19 @@ class BaseApp:
     CONFIG_PSTATE_FILE = 'pstate_file'
     CONFIG_RUNLOG_DIR  = 'runlog_dir'
 
-    # Runlog keys
-    RLKEY_NAME    = 'name'
-    RLKEY_PID     = 'pid'
-    RLKEY_ARGV    = 'argv'
-    RLKEY_COMMAND = 'command'
-    RLKEY_TS      = 'ts'
-    RLKEY_TSFSF   = 'ts_fsf'
-    RLKEY_TSSTR   = 'ts_str'
-    RLKEY_RESULT  = 'result'
-    RLKEY_RC      = 'rc'
-    RLKEY_ERRORS  = 'errors'
-    RLKEY_TMARKS  = 'time_marks'
+    # List of runlog keys.
+    RLKEY_NAME    = 'name'          # Application name.
+    RLKEY_PID     = 'pid'           # Application process PID.
+    RLKEY_ARGV    = 'argv'          # Application command line arguments.
+    RLKEY_TS      = 'ts'            # Timestamp as float.
+    RLKEY_TSFSF   = 'ts_fsf'        # Timestamp as sortable string (usefull for generating sortable file names).
+    RLKEY_TSSTR   = 'ts_str'        # Timestamp as readable string.
+    RLKEY_RESULT  = 'result'        # Result as a string.
+    RLKEY_RC      = 'rc'            # Result as numeric return code.
+    RLKEY_ERRORS  = 'errors'        # List of arrors during execution.
+    RLKEY_TMARKS  = 'time_marks'    # Time measuring marks.
 
-    # Runlog analysis keys
+    # List of runlog analysis keys.
     RLANKEY_LABEL       = 'label'
     RLANKEY_COMMAND     = 'command'
     RLANKEY_AGE         = 'age'
@@ -185,177 +460,206 @@ class BaseApp:
     RLANKEY_DURATIONS   = 'durations'
     RLANKEY_EFFECTIVITY = 'effectivity'
 
-    # Runlog evaluation keys
+    # List of runlog evaluation keys.
     RLEVKEY_ANALYSES = 'analyses'
+
+
+    #---------------------------------------------------------------------------
+    # "__INIT__" STAGE METHODS.
+    #---------------------------------------------------------------------------
+
 
     def __init__(self, **kwargs):
         """
-        Default script object constructor.
+        Base application object constructor. Only defines core internal variables.
+        The actual object initialization, during which command line arguments and
+        configuration files are parsed, is done during the configure() stage of
+        the run() sequence.
 
-        Only defines core internal variables. The actual object initialization,
-        during which command line arguments and configuration files are parsed,
-        is done during the configure() stage of the run() sequence.
+        :param kwargs: Various additional parameters.
         """
-        # [PUBLIC] Default script help description.
-        self.description = kwargs.get('description', 'BaseApp - Simple generic script')
+        # Initialize list of desired plugins.
+        self._plugins = kwargs.get(self.CONFIG_PLUGINS, [])
+
+        # [PUBLIC] Default application help description.
+        self.description = kwargs.get('description', 'BaseApp - Generic application')
 
         # [PUBLIC] Initialize command line argument parser.
         self.argparser = self._init_argparser(**kwargs)
 
         # Parse CLI arguments immediatelly, we need to check for a few priority
-        # flags and switches
-        self._config_cli = self._parse_cli_arguments()
+        # flags and switches.
+        self._config_cli  = self._parse_cli_arguments(self.argparser)
+        self._config_file = None
+        self._config_dir  = None
 
-        # [PUBLIC] Detect name of the script.
+        # [PUBLIC] Detect name of the application.
         self.name = self._init_name(**kwargs)
-        # [PUBLIC] Script paths.
+        # [PUBLIC] Script paths, will be used to construct various absolute file paths.
         self.paths  = self._init_paths(**kwargs)
         # [PUBLIC] Script processing runlog.
         self.runlog = self._init_runlog(**kwargs)
-        # [PUBLIC] Storage for script configurations.
-        self.config = self._init_config(**kwargs)
-        # [PUBLIC] Logger object.
+        # [PUBLIC] Storage for application configurations.
+        self.config = self._init_config((), **kwargs)
+        # [PUBLIC] Internal logger object.
         self.logger = None
         # [PUBLIC] Persistent state object.
         self.pstate = None
         # [PUBLIC] Final return code.
-        self.rc    = self.RC_SUCCESS
+        self.retc   = self.RC_SUCCESS
 
         # Perform subinitializations on default configurations and argument parser.
-        self._init_custom(self.config, self.argparser, **kwargs)
-
-    def __del__(self):
-        """
-        Default script object destructor. Perform generic cleanup.
-        """
-        pass
-
-    #---------------------------------------------------------------------------
-    # Object initialization helper methods
-    #---------------------------------------------------------------------------
+        self._sub_stage_init(**kwargs)
 
     def _init_argparser(self, **kwargs):
         """
-        Initialize script command line argument parser.
+        Initialize application command line argument parser. This method may be overriden
+        in subclasses, however it must return valid :py:class:`argparse.ArgumentParser`
+        object.
+
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Initialized argument parser object.
+        :rtype: argparse.ArgumentParser
         """
         argparser = argparse.ArgumentParser(description = self.description)
 
-        # Option flag indicating that script is running in debug mode. This option
+        # Option flag indicating that application is running in debug mode. This option
         # will enable displaying of additional helpful debugging messages. The
         # messages will be printed directly to terminal, without the use of
         # logging framework.
         argparser.add_argument('--debug', help = 'run in debug mode (flag)', action = 'store_true', default = None)
 
-        # Option flag indicating that script is running in quiet mode. This option
-        # will prevent script from displaying information to console.
-        argparser.add_argument('--quiet', help = 'run in quiet mode (flag)', action = 'store_true', default = None)
+        # Setup mutually exclusive group for quiet x verbose mode option.
+        group_a = argparser.add_mutually_exclusive_group()
+
+        # Option flag indicating that application is running in quiet mode. This option
+        # will prevent application from displaying any information to console.
+        group_a.add_argument('--quiet', help = 'run in quiet mode (flag)', action = 'store_true', default = None)
 
         # Option for setting the output verbosity level.
-        argparser.add_argument('--verbosity', help = 'increase output verbosity', action = 'count', default = None)
+        group_a.add_argument('--verbose', help = 'increase output verbosity (flag, repeatable)', action = 'count', default = None, dest = 'verbosity')
 
-        # Option flag indicating that the script should dump the runlog to logger,
-        # when the processing is done.
-        argparser.add_argument('--runlog-dump', help = 'dump runlog when done processing (flag)', action = 'store_true', default = None)
+        #
+        # Create and populate options group for common application arguments.
+        #
+        arggroup_common = argparser.add_argument_group('common application arguments')
 
-        # Option flag indicating that the script should dump the persistent state to logger,
-        # when the processing is done.
-        argparser.add_argument('--pstate-dump', help = 'dump persistent state when done processing (flag)', action = 'store_true', default = None)
+        arggroup_common.add_argument('--name',  help = 'name of the application', type = str, default = None)
+        arggroup_common.add_argument('--user',  help = 'process UID or user name', default = None)
+        arggroup_common.add_argument('--group', help = 'process GID or group name', default = None)
 
-        # Option for overriding the name of the component.
-        argparser.add_argument('--name', help = 'name of the component')
+        arggroup_common.add_argument('--config-file', help = 'name of the configuration file', type = str, default = None)
+        arggroup_common.add_argument('--config-dir',  help = 'name of the configuration directory', type = str, default = None)
+        arggroup_common.add_argument('--log-file',    help = 'name of the log file', type = str, default = None)
+        arggroup_common.add_argument('--log-level',   help = 'set logging level', choices = ['debug', 'info', 'warning', 'error', 'critical'], type = str, default = None)
 
-        # Option for setting the desired action.
-        argparser.add_argument('--action', help = 'choose which action should be performed', choices = self._utils_detect_actions())
+        arggroup_common.add_argument('--action', help = 'name of the quick action to be performed', choices = self._utils_detect_actions(), type = str, default = None)
+        arggroup_common.add_argument('--input',  help = 'file to be used as source file in action', type = str, default = None)
+        arggroup_common.add_argument('--limit',  help = 'apply given limit to the result', type = int, default = None)
 
-        # Option for setting the desired operation.
-        argparser.add_argument('--input', help = 'file to be used as source file in action')
+        arggroup_common.add_argument('--pstate-file', help = 'name of the persistent state file', type = str, default = None)
+        arggroup_common.add_argument('--pstate-dump', help = 'dump persistent state to stdout when done processing (flag)', action = 'store_true', default = None)
+        arggroup_common.add_argument('--pstate-log',  help = 'write persistent state to logging service when done processing (flag)', action = 'store_true', default = None)
 
-        # Option for setting the result limit.
-        argparser.add_argument('--limit', help = 'apply given limit to the result', type = int)
-
-        # Option for overriding the process UID.
-        argparser.add_argument('--user', help = 'process UID or user name')
-
-        # Option for overriding the process GID.
-        argparser.add_argument('--group', help = 'process GID or group name')
-
-        # Option for overriding the name of the configuration file.
-        argparser.add_argument('--config-file', help = 'name of the config file')
-
-        # Option for overriding the name of the configuration directory.
-        argparser.add_argument('--config-dir', help = 'name of the config directory')
-
-        # Option for overriding the name of the log file.
-        argparser.add_argument('--log-file', help = 'name of the log file')
-
-        # Option for setting the level of logging information.
-        argparser.add_argument('--log-level', help = 'set logging level', choices = ['debug', 'info', 'warning', 'error', 'critical'])
-
-        # Option for overriding the name of the persistent state file.
-        argparser.add_argument('--pstate-file', help = 'name of the persistent state file')
-
-        # Option for overriding the name of the runlog directory.
-        argparser.add_argument('--runlog-dir', help = 'name of the runlog directory')
+        arggroup_common.add_argument('--runlog-dir',  help = 'name of the runlog directory', type = str, default = None)
+        arggroup_common.add_argument('--runlog-dump', help = 'dump runlog to stdout when done processing (flag)', action = 'store_true', default = None)
+        arggroup_common.add_argument('--runlog-log',  help = 'write runlog to logging service when done processing (flag)', action = 'store_true', default = None)
 
         #argparser.add_argument('args', help = 'optional additional arguments', nargs='*')
 
+        for plugin in self._plugins:
+            argparser = plugin.init_argparser(self, argparser, **kwargs)
+
         return argparser
 
-    def _parse_cli_arguments(self):
+    def _parse_cli_arguments(self, argparser):
         """
-        Load and initialize script configuration received from command line.
+        Load and initialize application configuration received as command line arguments.
+        Use the previously configured ;py:class:`argparse.ArgumentParser` object
+        for parsing CLI arguments. Immediatelly perform dirty check for ``--debug``
+        flag to turn on debug output as soon as possible.
 
-        Use the configured ArgumentParser object for parsing CLI arguments.
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param argparse.ArgumentParser argparser: Argument parser object to use.
+        :return: Parsed command line arguments.
+        :rtype: dict
         """
-        # Finally actually process command line arguments.
-        cli_args = vars(self.argparser.parse_args())
+        # Actually process command line arguments.
+        cli_cfgs = vars(argparser.parse_args())
 
-        # Check for debug flag
-        if cli_args.get(self.CONFIG_DEBUG, False):
-            global FLAG_DEBUG
-            FLAG_DEBUG = True
-            self.dbgout("[STATUS] FLAG_DEBUG set to 'True' via command line argument")
+        # Immediatelly check for debug flag.
+        if cli_cfgs.get(self.CONFIG_DEBUG, False):
+            BaseApp.FLAG_DEBUG = True
+            self.dbgout("FLAG_DEBUG set to 'True' via command line option")
 
-        self.dbgout("[STATUS] Parsed command line arguments: '{}'".format(' '.join(sys.argv)))
-        return cli_args
+        self.dbgout("Received command line arguments: '{}'".format(' '.join(sys.argv)))
+        return cli_cfgs
 
     def _init_name(self, **kwargs):
         """
-        Initialize script name.
+        Initialize application name. The application name will then be used to
+        autogenerate default paths to various files and directories, like log
+        file, persistent state file etc. The default value for application name
+        is automagically detected from command line, or it may be explicitly set
+        either using command line option ``--name``, or by using parameter ``name``
+        of application object constructor.
+
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Name of the application.
+        :rtype: str
         """
         cli_name = self._config_cli.get(self.CONFIG_NAME)
         if cli_name:
-            if re.fullmatch('^[_a-zA-Z][-_a-zA-Z0-9.]*$', cli_name):
-                self.dbgout("[STATUS] Using custom script name '{}".format(cli_name))
+            if re.fullmatch(self.PTRN_APP_NAME, cli_name):
+                self.dbgout("Using custom application name '{}' received as command line option".format(cli_name))
                 return cli_name
-            else:
-                raise ZenAppException("Invalid script name '{}'. Valid pattern is '^[a-zA-Z][-_a-zA-Z0-9]*$'".format(cli_name))
-        elif 'name' in kwargs:
-            if re.fullmatch('^[_a-zA-Z][-_a-zA-Z0-9.]*$', kwargs['name']):
-                self.dbgout("[STATUS] Using custom script name '{}".format(kwargs['name']))
-                return kwargs['name']
-            else:
-                raise ZenAppException("Invalid script name '{}'. Valid pattern is '^[a-zA-Z][-_a-zA-Z0-9]*$'".format(cli_name))
-        else:
-            scr_name = os.path.basename(sys.argv[0])
-            self.dbgout("[STATUS] Using default script name '{}".format(scr_name))
-            return scr_name
+            raise ZenAppException("Invalid application name '{}'. Valid pattern is '{}'".format(cli_name, self.PTRN_APP_NAME))
+
+        if self.CONFIG_NAME in kwargs:
+            if re.fullmatch(self.PTRN_APP_NAME, kwargs[self.CONFIG_NAME]):
+                self.dbgout("Using custom application name '{}' received as constructor option".format(kwargs[self.CONFIG_NAME]))
+                return kwargs[self.CONFIG_NAME]
+            raise ZenAppException("Invalid application name '{}'. Valid pattern is '{}'".format(cli_name, self.PTRN_APP_NAME))
+
+        app_name = os.path.basename(sys.argv[0])
+        self.dbgout("Using default application name '{}".format(app_name))
+        return app_name
 
     def _init_paths(self, **kwargs):
         """
-        Initialize various script paths.
+        Initialize various application filesystem paths like temp directory, log
+        directory etc. These values will when be used to autogenerate default paths
+        to various files and directories, like log file, persistent state file etc.
+
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Configurations for various filesystem paths.
+        :rtype: dict
         """
         return {
-            self.PATH_BIN: kwargs.get('path_bin', "/usr/local/bin"),  # Application executable directory.
-            self.PATH_CFG: kwargs.get('path_cfg', "/etc"),            # Configuration directory.
-            self.PATH_LOG: kwargs.get('path_log', "/var/log"),        # Log directory.
-            self.PATH_RUN: kwargs.get('path_run', "/var/run"),        # Runlog directory.
-            self.PATH_TMP: kwargs.get('path_tmp', "/var/tmp"),        # Temporary file directory.
+            self.PATH_BIN: kwargs.get('path_{}'.format(self.PATH_BIN), "/usr/local/bin"),  # Application executable directory.
+            self.PATH_CFG: kwargs.get('path_{}'.format(self.PATH_CFG), "/etc"),            # Configuration directory.
+            self.PATH_LOG: kwargs.get('path_{}'.format(self.PATH_LOG), "/var/log"),        # Log directory.
+            self.PATH_RUN: kwargs.get('path_{}'.format(self.PATH_RUN), "/var/run"),        # Runlog directory.
+            self.PATH_TMP: kwargs.get('path_{}'.format(self.PATH_TMP), "/var/tmp"),        # Temporary file directory.
         }
 
     def _init_runlog(self, **kwargs):
         """
-        Initialize script runlog.
+        Initialize application runlog. Runlog should contain vital information about
+        application progress and it will be stored into file upon exit.
+
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Runlog structure.
+        :rtype: dict
         """
         runlog = {
             self.RLKEY_NAME:   self.name,
@@ -371,11 +675,23 @@ class BaseApp:
         # Timestamp as readable string.
         runlog[self.RLKEY_TSSTR] = time.strftime('%Y-%m-%d %X', time.localtime(runlog[self.RLKEY_TS]))
 
+        for plugin in self._plugins:
+            runlog = plugin.init_runlog(self, runlog, **kwargs)
+
         return runlog
 
-    def _init_config(self, **kwargs):
+    def _init_config(self, cfgs, **kwargs):
         """
-        Initialize script configurations to default values.
+        Initialize default application configurations. This method may be used
+        from subclasses by passing any additional configurations in ``cfgs``
+        parameter.
+
+        Gets called from main constructor :py:func:`BaseApp.__init__`.
+
+        :param list cfgs: Additional set of configurations.
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Default configuration structure.
+        :rtype: dict
         """
         cfgs = (
             (self.CONFIG_DEBUG,       False),
@@ -383,6 +699,8 @@ class BaseApp:
             (self.CONFIG_VERBOSITY,   0),
             (self.CONFIG_RUNLOG_DUMP, False),
             (self.CONFIG_PSTATE_DUMP, False),
+            (self.CONFIG_RUNLOG_LOG,  False),
+            (self.CONFIG_PSTATE_LOG,  False),
             (self.CONFIG_ACTION,      None),
             (self.CONFIG_INPUT,       None),
             (self.CONFIG_LIMIT,       None),
@@ -394,286 +712,276 @@ class BaseApp:
             (self.CONFIG_LOG_LEVEL,   'info'),
             (self.CONFIG_PSTATE_FILE, os.path.join(self.paths.get(self.PATH_RUN), "{}.pstate".format(self.name))),
             (self.CONFIG_RUNLOG_DIR,  os.path.join(self.paths.get(self.PATH_RUN), "{}".format(self.name))),
-        )
+        ) + cfgs
         config = {}
-        for c in cfgs:
-            config[c[0]] = kwargs.get('default_' + c[0], c[1])
+        for cfg in cfgs:
+            config[cfg[0]] = kwargs.get('default_{}'.format(cfg[0]), cfg[1])
+
+        for plugin in self._plugins:
+            config = plugin.init_config(self, config, **kwargs)
+
         return config
 
-    def _init_custom(self, config, argparser, **kwargs):
+
+    #---------------------------------------------------------------------------
+    # TEMPLATE METHOD HOOKS (INTENDED TO BE USED BY SUBCLASSESS).
+    #---------------------------------------------------------------------------
+
+
+    def _sub_stage_init(self, **kwargs):
         """
-        Perform subinitializations on default configurations and argument parser.
+        **SUBCLASS HOOK**: Perform additional custom initialization actions in **__init__** stage.
+
+        :param kwargs: Various additional parameters passed down from constructor.
         """
         pass
 
-    #---------------------------------------------------------------------------
-    # Template method hooks (intended to be used by subclassess)
-    #---------------------------------------------------------------------------
+    def _sub_stage_setup(self):
+        """
+        **SUBCLASS HOOK**: Perform additional custom setup actions in **setup** stage.
+
+        Gets called from :py:func:`BaseApp._stage_setup` and it is a **SETUP SUBSTAGE 06**.
+        """
+        pass
+
+    def _sub_stage_process(self):
+        """
+        **SUBCLASS HOOK**: Perform some actual processing in **process** stage.
+        """
+        raise NotImplementedError("Method must be implemented in subclass")
+
+    def _sub_stage_teardown(self):
+        """
+        **SUBCLASS HOOK**: Perform additional teardown actions in **teardown** stage.
+
+        Gets called from :py:func:`BaseApp._stage_teardown` and it is a **TEARDOWN SUBSTAGE 01**.
+        """
+        pass
 
     def _sub_runlog_analyze(self, runlog, analysis):
         """
-        Analyze given runlog (hook for subclasses).
+        **SUBCLASS HOOK**: Analyze given runlog.
         """
         return analysis
 
     def _sub_runlog_format_analysis(self, analysis):
         """
-        Format given runlog analysis (hook for subclasses).
+        **SUBCLASS HOOK**: Format given runlog analysis.
         """
         pass
 
     def _sub_runlogs_evaluate(self, runlogs, evaluation):
         """
-        Evaluate given runlog analyses (hook for subclasses).
+        **SUBCLASS HOOK**: Evaluate given runlog analyses.
         """
         return evaluation
 
     def _sub_runlogs_format_evaluation(self, evaluation):
         """
-        Format given runlogs evaluation (hook for subclasses).
+        **SUBCLASS HOOK**: Format given runlogs evaluation.
         """
         pass
 
-    #---------------------------------------------------------------------------
-    # Helpers and shortcut methods
-    #---------------------------------------------------------------------------
-
-    def get_fn_runlog(self):
-        """
-        Return the name of the runlog file for current process.
-        """
-        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.runlog".format(self.runlog[self.RLKEY_TSFSF]))
-
-    def get_fn_pstate(self):
-        """
-        Return the name of the persistent state file for current process.
-        """
-        return self.c(self.CONFIG_PSTATE_FILE)
-
-    def c(self, key, default = None):
-        """
-        Shortcut method: Get given configuration value.
-        """
-        if default is None:
-            return self.config.get(key)
-        else:
-            return self.config.get(key, default)
-
-    def cc(self, key, default = None):
-        """
-        Shortcut method: Get given CORE configuration value.
-        """
-        if default is None:
-            return self.config[self.CORE].get(key)
-        else:
-            return self.config[self.CORE].get(key, default)
-
-    def p(self, string, level = 0):
-        """
-        Shortcut method: Print given string.
-        """
-        if not self.c(self.CONFIG_QUIET) and self.c(self.CONFIG_VERBOSITY) >= level:
-            print(string)
-
-    def error(self, error, rc = None, tb = None):
-        """
-        Method for registering error, that occured during script run.
-        """
-        self.rc = rc if rc is not None else self.RC_FAILURE
-
-        errstr = "{}".format(error)
-        self.logger.error(errstr)
-
-        if tb:
-            tbexc = traceback.format_tb(tb)
-            self.logger.error("\n" + "".join(tbexc))
-
-        self.runlog[self.RLKEY_ERRORS].append(errstr)
-        self.runlog[self.RLKEY_RESULT] = self.RESULT_FAILURE
-        self.runlog[self.RLKEY_RC] = self.rc
-
-    def dbgout(self, message):
-        """
-        Routine for printing additional debug messages.
-
-        The given message is printed only in case the global 'FLAG_DEBUG' flag is
-        set to True.
-        """
-        if FLAG_DEBUG:
-            print("*DBG* {} {}".format(time.strftime('%Y-%m-%d %X', time.localtime()), message), file=sys.stderr)
-
-    def errout(self, exception):
-        """
-        Routine for printing error messages.
-        """
-        print("*ERR* {} {}".format(time.strftime('%Y-%m-%d %X', time.localtime()), exception), file=sys.stderr)
-        sys.exit(self.RC_FAILURE)
 
     #---------------------------------------------------------------------------
-    # Internal utilities
+    # "SETUP:CONFIGURATION" SUBSTAGE METHODS.
     #---------------------------------------------------------------------------
 
-    def _utils_detect_actions(self):
-        """
-        Returns the sorted list of all available actions current script is capable
-        of performing. The detection algorithm is based on string analysis of all
-        available methods. Any method starting with string 'cbk_action_' will
-        be appended to the list, lowercased and with '_' characters replaced with '-'.
-        """
-        ptrn = re.compile(self.PTRN_ACTION_CBK)
-        attrs = sorted(dir(self))
-        result = []
-        for a in attrs:
-            if not callable(getattr(self, a)):
-                continue
-            match = ptrn.match(a)
-            if match:
-                result.append(a.replace(self.PTRN_ACTION_CBK,'').replace('_','-').lower())
-        return result
 
-    #---------------------------------------------------------------------------
-    # CONFIGURATION RELATED METHODS (SETUP CONFIGURATION SUBSTAGE)
-    #---------------------------------------------------------------------------
-
-    def _configure_cli(self):
+    def _configure_from_cli(self):
         """
-        Load and initialize script configuration received from command line.
+        Process application configurations received from command line. It would be
+        much cleaner to do the parsing in this method. However the arguments had
+        to be already parsed and loaded, because we needed to hack the process to
+        check for ``--debug`` option to turn the debug flag on and enable output
+        of debug messages. So only task this method has is to perform some additional
+        processing. The presence of ``--config-file`` or ``--config-dir`` options
+        will cause the appropriate default values to be overwritten. This way an
+        alternative configuration file or directory will be loaded in next step.
 
-        Use the configured ArgumentParser object for parsing CLI arguments.
+        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        therefore part of **SETUP** stage.
         """
         # IMPORTANT! Immediatelly rewrite the default value for configuration file
-        # and configuration directory names, if the value was received as command
-        # line argument.
+        # names, if the value was received as command line argument.
         if self._config_cli[self.CONFIG_CFG_FILE] is not None:
-            self.dbgout("[STATUS] Config file option override from '{}' to '{}'".format(self.config[self.CONFIG_CFG_FILE], self._config_cli[self.CONFIG_CFG_FILE]))
             self.config[self.CONFIG_CFG_FILE] = self._config_cli[self.CONFIG_CFG_FILE]
+            self.dbgout("Config file name overridden from '{}' to '{}' by command line option".format(self.config[self.CONFIG_CFG_FILE], self._config_cli[self.CONFIG_CFG_FILE]))
+
+        # IMPORTANT! Immediatelly rewrite the default value for configuration file
+        # names, if the value was received as command line argument.
         if self._config_cli[self.CONFIG_CFG_DIR] is not None:
-            self.dbgout("[STATUS] Config directory option override from '{}' to '{}'".format(self.config[self.CONFIG_CFG_DIR], self._config_cli[self.CONFIG_CFG_DIR]))
             self.config[self.CONFIG_CFG_DIR] = self._config_cli[self.CONFIG_CFG_DIR]
+            self.dbgout("Config directory name overridden from '{}' to '{}' by command line option".format(self.config[self.CONFIG_CFG_DIR], self._config_cli[self.CONFIG_CFG_DIR]))
 
-        return self._config_cli
-
-    def _configure_file(self):
+    def _configure_from_file(self):
         """
-        Load and initialize script configuration received from configuration file.
+        Load and initialize application configurations from single configuration file.
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        therefore part of **SETUP** stage.
         """
         try:
             self._config_file = pyzenkit.jsonconf.config_load(self.c(self.CONFIG_CFG_FILE))
-            self.dbgout("[STATUS] Loaded configuration file '{}'".format(self.c(self.CONFIG_CFG_FILE)))
+            self.dbgout("Loaded contents of configuration file '{}'".format(self.c(self.CONFIG_CFG_FILE)))
+
         except FileNotFoundError as exc:
             raise ZenAppSetupException("Configuration file '{}' does not exist".format(self.c(self.CONFIG_CFG_FILE)))
 
-    def _configure_dir(self):
+    def _configure_from_dir(self):
         """
-        Load and initialize script configuration received from configuration directory.
+        Load and initialize application configurations from multiple files in
+        configuration directory.
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        therefore part of **SETUP** stage.
         """
         try:
             self._config_dir = pyzenkit.jsonconf.config_load_dir(self.c(self.CONFIG_CFG_DIR))
-            self.dbgout("[STATUS] Loaded configuration directory '{}'".format(self.c(self.CONFIG_CFG_DIR)))
+            self.dbgout("Loaded contents of configuration directory '{}'".format(self.c(self.CONFIG_CFG_DIR)))
+
         except FileNotFoundError as exc:
             raise ZenAppSetupException("Configuration directory '{}' does not exist".format(self.c(self.CONFIG_CFG_DIR)))
 
     def _configure_merge(self):
         """
-        Configure script and produce final configuration by merging all available
+        Configure application and produce final configuration by merging all available
         configuration values in appropriate order ('default' <= 'dir' <= 'file' <= 'cli').
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        therefore part of **SETUP** stage.
         """
+        exceptions = (self.CONFIG_CFG_FILE, self.CONFIG_CFG_DIR)
+
         # Merge configuration directory values with current config, if possible.
         if self.c(self.CONFIG_CFG_DIR, False):
-            self.dbgout("[STATUS] Merging global config with DIRECTORY configurations")
-            self.config.update((k, v) for k, v in self._config_dir.items() if v is not None)
+            self.config.update((key, val) for key, val in self._config_dir.items() if val is not None and key not in exceptions)
+            self.dbgout("Merged directory configurations into global configurations")
 
         # Merge configuration file values with current config, if possible.
         if self.c(self.CONFIG_CFG_FILE, False):
-            self.dbgout("[STATUS] Merging global config with FILE configurations")
-            self.config.update((k, v) for k, v in self._config_file.items() if v is not None)
+            self.config.update((key, val) for key, val in self._config_file.items() if val is not None and key not in exceptions)
+            self.dbgout("Merged file configurations into global configurations")
 
         # Merge command line values with current config, if possible.
-        self.dbgout("[STATUS] Merging global config with CLI configurations")
-        self.config.update((k, v) for k, v in self._config_cli.items() if v is not None)
+        self.config.update((key, val) for key, val in self._config_cli.items() if val is not None)
+        self.dbgout("Merged command line configurations into global configurations")
 
     def _configure_postprocess(self):
         """
-        Perform configuration postprocessing.
+        Perform configuration postprocessing and calculate core configurations.
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        therefore part of **SETUP** stage.
         """
+        # Always mstart with a clean slate.
         self.config[self.CORE] = {}
 
-        cc = {}
-        cc[self.CORE_LOGGING_TOCONS] = True
-        cc[self.CORE_LOGGING_TOFILE] = True
-        cc[self.CORE_LOGGING_LEVEL]  = self.c(self.CONFIG_LOG_LEVEL).upper()
-        cc[self.CORE_LOGGING_LEVELF] = cc[self.CORE_LOGGING_LEVEL]
-        cc[self.CORE_LOGGING_LEVELC] = cc[self.CORE_LOGGING_LEVEL]
-        self.config[self.CORE][self.CORE_LOGGING] = cc
+        # Initial logging configurations.
+        ccfg = {}
+        ccfg[self.CORE_LOGGING_TOCONS] = True
+        ccfg[self.CORE_LOGGING_TOFILE] = True
+        ccfg[self.CORE_LOGGING_LEVEL]  = self.c(self.CONFIG_LOG_LEVEL).upper()
+        ccfg[self.CORE_LOGGING_LEVELF] = ccfg[self.CORE_LOGGING_LEVEL]
+        ccfg[self.CORE_LOGGING_LEVELC] = ccfg[self.CORE_LOGGING_LEVEL]
+        self.config[self.CORE][self.CORE_LOGGING] = ccfg
 
-        cc = {}
-        cc[self.CORE_PSTATE_SAVE] = True
-        self.config[self.CORE][self.CORE_PSTATE] = cc
+        # Initial persistent configurations.
+        ccfg = {}
+        ccfg[self.CORE_PSTATE_SAVE] = True
+        self.config[self.CORE][self.CORE_PSTATE] = ccfg
 
-        cc = {}
-        cc[self.CORE_RUNLOG_SAVE] = True
-        self.config[self.CORE][self.CORE_RUNLOG] = cc
+        # Initial runlog configurations.
+        ccfg = {}
+        ccfg[self.CORE_RUNLOG_SAVE] = True
+        self.config[self.CORE][self.CORE_RUNLOG] = ccfg
 
+        # Postprocess user account configurations, when necessary.
         if self.config[self.CONFIG_USER]:
-            u = self.config[self.CONFIG_USER]
+            usa = self.config[self.CONFIG_USER]
             res = None
             if not res:
                 try:
-                    res = pwd.getpwnam(u)
+                    res = pwd.getpwnam(usa)
                     self.config[self.CONFIG_USER] = [res[0], res[2]]
                 except:
                     pass
             if not res:
                 try:
-                    res = pwd.getpwuid(int(u))
+                    res = pwd.getpwuid(int(usa))
                     self.config[self.CONFIG_USER] = [res[0], res[2]]
                 except:
                     pass
             if not res:
-                raise ZenAppSetupException("Unknown user account '{}'".format(u))
+                raise ZenAppSetupException("Requested unknown user account '{}'".format(usa))
 
+            self.dbgout("System user account will be set to '{}':'{}'".format(res[0], res[2]))
+
+        # Postprocess group account configurations, when necessary.
         if self.config[self.CONFIG_GROUP]:
-            g = self.config[self.CONFIG_GROUP]
+            gra = self.config[self.CONFIG_GROUP]
             res = None
             if not res:
                 try:
-                    res = grp.getgrnam(g)
+                    res = grp.getgrnam(gra)
                     self.config[self.CONFIG_GROUP] = [res[0], res[2]]
                 except:
                     pass
             if not res:
                 try:
-                    res = grp.getgrgid(int(g))
+                    res = grp.getgrgid(int(gra))
                     self.config[self.CONFIG_GROUP] = [res[0], res[2]]
                 except:
                     pass
             if not res:
-                raise ZenAppSetupException("Unknown group account '{}'".format(g))
+                raise ZenAppSetupException("Requested unknown group account '{}'".format(gra))
+
+            self.dbgout("System group account will be set to '{}':'{}'".format(res[0], res[2]))
+
+    def _configure_plugins(self):
+        """
+        Perform configurations of all application plugins.
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        therefore part of **SETUP** stage.
+        """
+        for plugin in self._plugins:
+            self.dbgout("Configuring application plugin '{}'".format(plugin))
+            plugin.configure(self)
 
     def _configure_check(self):
         """
-        TODO: Implement config checking mechanism.
+        Perform configuration validation and checking.
+
+        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        therefore part of **SETUP** stage.
+
+        .. todo::
+
+            Missing implementation, work in progress.
         """
         pass
 
     #---------------------------------------------------------------------------
-    # "SETUP" STAGE RELATED METHODS
+    # "SETUP" STAGE METHODS.
     #---------------------------------------------------------------------------
 
     def _stage_setup_configuration(self):
         """
-        Setup script configurations.
+        **SETUP SUBSTAGE 01:** Setup application configurations.
+
+        Gets called from :py:func:`BaseApp._stage_setup`.
         """
         # Load configurations from command line.
-        self._configure_cli()
+        self._configure_from_cli()
 
         # Load configurations from config file, if the appropriate feature is enabled.
         if self.c(self.CONFIG_CFG_FILE, False):
-            self._configure_file()
+            self._configure_from_file()
 
         # Load configurations from config directory, if the appropriate feature is enabled.
         if self.c(self.CONFIG_CFG_DIR, False):
-            self._configure_dir()
+            self._configure_from_dir()
 
         # Merge all available configurations together with default.
         self._configure_merge()
@@ -681,39 +989,47 @@ class BaseApp:
         # Postprocess loaded configurations
         self._configure_postprocess()
 
+        # Postprocess loaded configurations
+        self._configure_plugins()
+
         # Check all loaded configurations.
         self._configure_check()
 
     def _stage_setup_privileges(self):
         """
-        Adjust the script privileges according to the configration.
+        **SETUP SUBSTAGE 02:** Setup application privileges (user and group account).
+
+        Gets called from :py:func:`BaseApp._stage_setup`.
         """
-        g = self.c(self.CONFIG_GROUP, None)
-        if g and g[1] != os.getgid():
-            cg = grp.getgrgid(os.getgid())
-            self.dbgout("[STATUS] Dropping group privileges from '{}':'{}' to '{}':'{}'".format(cg[0], cg[2], g[0], g[1]))
-            os.setgid(g[1])
-        u = self.c(self.CONFIG_USER, None)
-        if u and u[1] != os.getuid():
-            cu = pwd.getpwuid(os.getuid())
-            self.dbgout("[STATUS] Dropping user privileges from '{}':'{}' to '{}':'{}'".format(cu[0], cu[2], u[0], u[1]))
-            os.setuid(u[1])
+        gra = self.c(self.CONFIG_GROUP, None)
+        if gra and gra[1] != os.getgid():
+            cga = grp.getgrgid(os.getgid())
+            self.dbgout("Dropping group privileges from '{}':'{}' to '{}':'{}'".format(cga[0], cga[2], gra[0], gra[1]))
+            os.setgid(gra[1])
+
+        usa = self.c(self.CONFIG_USER, None)
+        if usa and usa[1] != os.getuid():
+            cua = pwd.getpwuid(os.getuid())
+            self.dbgout("Dropping user privileges from '{}':'{}' to '{}':'{}'".format(cua[0], cua[2], usa[0], usa[1]))
+            os.setuid(usa[1])
 
     def _stage_setup_logging(self):
         """
-        Setup terminal and file logging facilities.
+        **SETUP SUBSTAGE 03:** Setup terminal and file logging facilities.
+
+        Gets called from :py:func:`BaseApp._stage_setup`.
         """
         cc = self.cc(self.CORE_LOGGING, {})
         if cc[self.CORE_LOGGING_TOCONS] or cc[self.CORE_LOGGING_TOFILE]:
             # [PUBLIC] Register the logger object as internal attribute.
-            self.logger = logging.getLogger('zenlogger')
+            self.logger = logging.getLogger('zenapplogger')
             self.logger.setLevel(cc[self.CORE_LOGGING_LEVEL])
 
-            # Setup console logging
+            # Setup console logging.
             if cc[self.CORE_LOGGING_TOCONS]:
                 logging_level = getattr(logging, cc[self.CORE_LOGGING_LEVELC], None)
                 if not isinstance(logging_level, int):
-                    raise ValueError("Invalid log level: '{}'".format(cc[self.CORE_LOGGING_LEVELC]))
+                    raise ValueError("Invalid log severity level '{}'".format(cc[self.CORE_LOGGING_LEVELC]))
 
                 # Initialize console logging handler.
                 fm1 = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
@@ -721,13 +1037,13 @@ class BaseApp:
                 ch1.setLevel(logging_level)
                 ch1.setFormatter(fm1)
                 self.logger.addHandler(ch1)
-                self.dbgout("[STATUS] Logging to console with level threshold '{}'".format(cc[self.CORE_LOGGING_LEVELC]))
+                self.dbgout("Logging to console with severity threshold '{}'".format(cc[self.CORE_LOGGING_LEVELC]))
 
             # Setup file logging
             if cc[self.CORE_LOGGING_TOFILE]:
                 logging_level = getattr(logging, cc[self.CORE_LOGGING_LEVELF], None)
                 if not isinstance(logging_level, int):
-                    raise ValueError("Invalid log level: '{}'".format(cc[self.CORE_LOGGING_LEVELF]))
+                    raise ValueError("Invalid log severity level '{}'".format(cc[self.CORE_LOGGING_LEVELF]))
 
                 lfn = self.c(self.CONFIG_LOG_FILE)
                 fm2 = logging.Formatter('%(asctime)s {} [%(process)d] %(levelname)s: %(message)s'.format(self.name))
@@ -736,83 +1052,97 @@ class BaseApp:
                 ch2.setLevel(logging_level)
                 ch2.setFormatter(fm2)
                 self.logger.addHandler(ch2)
-                self.dbgout("[STATUS] Logging to log file '{}' with level threshold '{}'".format(lfn, cc[self.CORE_LOGGING_LEVELF]))
+                self.dbgout("Logging to log file '{}' with severity threshold '{}'".format(lfn, cc[self.CORE_LOGGING_LEVELF]))
 
     def _stage_setup_pstate(self):
         """
-        Setup persistent state.
+        **SETUP SUBSTAGE 04:** Setup persistent state from external JSON file.
 
-        Load persistent script state from external file (JSON).
+        Gets called from :py:func:`BaseApp._stage_setup`.
         """
         if os.path.isfile(self.c(self.CONFIG_PSTATE_FILE)):
-            self.dbgout("[STATUS] Loading persistent state from file '{}'".format(self.c(self.CONFIG_PSTATE_FILE)))
+            self.dbgout("Loading persistent state from file '{}'".format(self.c(self.CONFIG_PSTATE_FILE)))
             self.pstate = self.json_load(self.c(self.CONFIG_PSTATE_FILE))
         else:
-            self.dbgout("[STATUS] Setting default persistent state".format(self.c(self.CONFIG_PSTATE_FILE)))
+            self.dbgout("Setting default empty persistent state")
             self.pstate =  {}
 
-    def _stage_setup_custom(self):
+    def _stage_setup_plugins(self):
         """
-        Custom setup.
+        **SETUP SUBSTAGE 05:** Perform setup of all application plugins.
+
+        Gets called from :py:func:`BaseApp._stage_setup`.
         """
-        pass
+        for plugin in self._plugins:
+            self.dbgout("Setting-up application plugin '{}'".format(plugin))
+            plugin.setup(self)
 
     def _stage_setup_dump(self):
         """
-        Dump script setup information.
+        **SETUP SUBSTAGE 07:** Dump application setup information. This method will
+        display all vital information about application setup like filesystem paths,
+        configurations etc.
 
-        This method will display information about script system paths, configuration
-        loaded from CLI arguments or config file, final merged configuration.
+        Gets called from :py:func:`BaseApp._stage_setup`.
         """
-        self.logger.debug("Script name detected as '{}'".format(self.name))
-        self.logger.debug("System paths >>>\n{}".format(self.json_dump(self.paths, default=_json_default)))
+        self.logger.debug("Application name is '%s'", self.name)
+        self.logger.debug("System paths >>>\n%s", self.json_dump(self.paths))
         if self.c(self.CONFIG_CFG_DIR, False):
-            self.logger.debug("Loaded DIRECTORY configurations >>>\n{}".format(self.json_dump(self._config_dir, default=_json_default)))
+            self.logger.debug("Loaded directory configurations >>>\n%s", self.json_dump(self._config_dir))
         if self.c(self.CONFIG_CFG_FILE, False):
-            self.logger.debug("Loaded FILE configurations >>>\n{}".format(self.json_dump(self._config_file, default=_json_default)))
-        self.logger.debug("Loaded CLI configurations >>>\n{}".format(self.json_dump(self._config_cli, default=_json_default)))
-        self.logger.debug("Script configurations >>>\n{}".format(self.json_dump(self.config, default=_json_default)))
-        self.logger.debug("Loaded persistent state >>>\n{}".format(self.json_dump(self.pstate, default=_json_default)))
+            self.logger.debug("Loaded file configurations >>>\n%s", self.json_dump(self._config_file))
+        self.logger.debug("Loaded command line configurations >>>\n%s", self.json_dump(self._config_cli))
+        self.logger.debug("Final application configurations >>>\n%s", self.json_dump(self.config))
+        self.logger.debug("Loaded persistent state >>>\n%s", self.json_dump(self.pstate))
+        self.logger.debug("Application plugins >>>\n%s", self.json_dump(self._plugins))
+
 
     #---------------------------------------------------------------------------
-    # "TEARDOWN" STAGE RELATED METHODS
+    # "TEARDOWN" STAGE METHODS.
     #---------------------------------------------------------------------------
 
-    def _stage_teardown_custom(self):
-        """
-        Custom teardown.
-        """
-        pass
 
     def _stage_teardown_pstate(self):
         """
-        Teardown state.
+        **TEARDOWN SUBSTAGE 02:** Save application persistent state into JSON file, dump
+        it to ``stdout`` or write it to logging service.
 
-        Save persistent script state to external file (JSON).
+        Gets called from :py:func:`BaseApp._stage_teardown`.
         """
         if self.cc(self.CORE_PSTATE, {}).get(self.CORE_PSTATE_SAVE):
-            self.pstate_save(self.pstate)
+            self._utils_pstate_save(self.pstate)
         if self.c(self.CONFIG_PSTATE_DUMP):
-            self.pstate_dump(self.pstate)
+            self._utils_pstate_dump(self.pstate)
+        if self.c(self.CONFIG_PSTATE_LOG):
+            self._utils_pstate_log(self.pstate)
 
     def _stage_teardown_runlog(self):
         """
-        Teardown runlog.
+        **TEARDOWN SUBSTAGE 03:** Save application runlog into JSON file, dump it to
+        ``stdout`` or write it to logging service.
 
-        Save runlog to external file (JSON) and dump runlog to log.
+        Gets called from :py:func:`BaseApp._stage_teardown`.
         """
         if self.cc(self.CORE_RUNLOG, {}).get(self.CORE_RUNLOG_SAVE):
-            self.runlog_save(self.runlog)
+            self._utils_runlog_save(self.runlog)
         if self.c(self.CONFIG_RUNLOG_DUMP):
-            self.runlog_dump(self.runlog)
+            self._utils_runlog_dump(self.runlog)
+        if self.c(self.CONFIG_RUNLOG_LOG):
+            self._utils_runlog_log(self.runlog)
+
 
     #---------------------------------------------------------------------------
-    # MAIN STAGE METHODS
+    # MAIN STAGE METHODS.
     #---------------------------------------------------------------------------
 
-    def stage_setup(self):
+
+    def _stage_setup(self):
         """
-        Script lifecycle stage: SETUP
+        **STAGE:** *SETUP*.
+
+        Perform full application bootstrap. Any exception during this stage will
+        get caught, logged using :py:func:`~BaseApp.excout` method and the application
+        will immediatelly terminate.
         """
         self.time_mark('stage_setup_start', 'Start of the setup stage')
 
@@ -820,7 +1150,7 @@ class BaseApp:
             # Setup configurations.
             self._stage_setup_configuration()
 
-            # Setup script privileges
+            # Setup application privileges
             self._stage_setup_privileges()
 
             # Setup logging, if the appropriate feature is enabled.
@@ -831,70 +1161,89 @@ class BaseApp:
             if self.c(self.CONFIG_PSTATE_FILE):
                 self._stage_setup_pstate()
 
-            # Perform custom setup operations.
-            self._stage_setup_custom()
+            # Perform plugin setup actions.
+            self._stage_setup_plugins()
 
-            # Finally dump information about the script setup.
+            # Perform custom setup actions.
+            self._sub_stage_setup()
+
+            # Finally dump information about the application setup.
             self._stage_setup_dump()
 
         except ZenAppSetupException as exc:
-            # At this point the logging facilities are not yet configured, so we must
-            # use other means of diplaying the error to the user. Use custom function
-            # to suppres the backtrace print for known issues and errors.
-            self.errout(exc)
+            # At this point the logging facilities may not yet be configured, so
+            # we must use other means of diplaying the error to the user. For that
+            # reason use custom function to supress the traceback print for known
+            # issues and errors.
+            self.excout(exc)
 
         self.time_mark('stage_setup_stop', 'End of the setup stage')
 
-    def stage_action(self):
+    def _stage_action(self):
         """
-        Script lifecycle stage: ACTION
+        **STAGE:** *ACTION*.
 
-        Perform some quick action. Following method will call appropriate
-        callback method to service the selected action.
+        Perform a quick action. Following method will call appropriate callback
+        method to service the requested action. The application will immediatelly
+        terminate afterwards.
+
+        Name of the callback method is calculated from the name of the action by
+        prepending string ``cbk_action_`` and replacing all ``-`` with ``_``.
         """
         self.time_mark('stage_action_start', 'Start of the action stage')
 
         try:
-            # Determine, which operation to execute.
+            # Determine, which action to execute.
             self.runlog[self.CONFIG_ACTION] = self.c(self.CONFIG_ACTION)
-            opname = self.c(self.CONFIG_ACTION)
-            opcbkname = self.PTRN_ACTION_CBK + opname.lower().replace('-','_')
+            actname = self.c(self.CONFIG_ACTION)
+            actcbkname = self.PTRN_ACTION_CBK + actname.lower().replace('-','_')
 
-            cbk = getattr(self, opcbkname, None)
+            cbk = getattr(self, actcbkname, None)
             if cbk:
+                self.dbgout("Executing callback '{}' for action '{}'".format(actcbkname, actname))
                 cbk()
             else:
-                raise ZenAppProcessException("Invalid action '{}', callback '{}' does not exist".format(opname, opcbkname))
+                raise ZenAppProcessException("Invalid action '{}', callback '{}' does not exist".format(actname, actcbkname))
 
         except subprocess.CalledProcessError as err:
             self.error("System command error: {}".format(err))
 
         except ZenAppProcessException as exc:
-            self.error("ZenAppProcessException: {}".format(exc))
+            self.error("Action exception: {}".format(exc))
 
         except ZenAppException as exc:
-            self.error("ZenAppException: {}".format(exc))
+            self.error("Application exception: {}".format(exc))
 
         self.time_mark('stage_action_stop', 'End of the action stage')
 
-    def stage_process(self):
+    def _stage_process(self):
         """
-        Script lifecycle stage: PROCESSING
+        **STAGE:** *PROCESS*.
 
-        Perform some real work (finally). Following method will call appropriate
-        callback method operation to service the selected operation.
+        Finally perform some real work. This method will call :py:func:`_sub_stage_process`
+        hook, which must be implemented in subclass.
         """
-        #self.time_mark('stage_process_start', 'Start of the processing stage')
+        self.time_mark('stage_process_start', 'Start of the processing stage')
 
-        raise Exception("stage_process() method must be implemented in subclass")
+        try:
+            self._sub_stage_process()
 
-        #self.time_mark('stage_process_stop', 'End of the processing stage')
+        except subprocess.CalledProcessError as err:
+            self.error("System command error: {}".format(err))
 
-    def stage_evaluate(self):
+        except ZenAppProcessException as exc:
+            self.error("Processing exception: {}".format(exc))
+
+        except ZenAppException as exc:
+            self.error("Application exception: {}".format(exc))
+
+        self.time_mark('stage_process_stop', 'End of the processing stage')
+
+    def _stage_evaluate(self):
         """
-        Script lifecycle stage: EVALUATE
+        **STAGE:** *EVALUATE*.
 
-        Perform script runlog evaluation.
+        Perform application runlog postprocessing evaluation.
         """
         self.time_mark('stage_evaluate_start', 'Start of the evaluation stage')
 
@@ -902,23 +1251,25 @@ class BaseApp:
             pass
 
         except ZenAppEvaluateException as exc:
-            self.error("ZenAppEvaluateException: {}".format(exc))
+            self.error("Evaluation exception: {}".format(exc))
+
+        except ZenAppException as exc:
+            self.error("Application exception: {}".format(exc))
 
         self.time_mark('stage_evaluate_stop', 'End of the evaluation stage')
 
-    def stage_teardown(self):
+    def _stage_teardown(self):
         """
-        Script lifecycle stage: TEARDOWN
+        **STAGE:** *TEARDOWN*
 
         Main teardown routine. This method will call the sequence of all configured
         teardown routines.
         """
         try:
-            # Perform custom teardown operations.
-            self._stage_teardown_custom()
+            # Perform custom teardown actions.
+            self._sub_stage_teardown()
 
-            # Teardown persistent state, if the appropriate feature is enabled and
-            # also we are running in regular mode.
+            # Teardown persistent state.
             if self.c(self.CONFIG_PSTATE_FILE):
                 self._stage_teardown_pstate()
 
@@ -927,102 +1278,109 @@ class BaseApp:
                 self._stage_teardown_runlog()
 
         except ZenAppTeardownException as exc:
-            self.error("ZenAppTeardownException: {}".format(exc))
+            self.error("Teardown exception: {}".format(exc))
+
+        except ZenAppException as exc:
+            self.error("Application exception: {}".format(exc))
+
 
     #---------------------------------------------------------------------------
-    # MAIN RUN METHODS
+    # APPLICATION MODE METHODS (MAIN RUN METHODS).
     #---------------------------------------------------------------------------
+
 
     def run(self):
         """
-        Standalone script mode - Main processing method.
+        **APPLICATION MODE:** *Standalone application mode* - Main processing method.
 
-        Run as standalone script, performs all stages of script object life cycle:
+        Run as standalone application, performs all stages of object life cycle:
             1. setup stage
-            2.1 action processing stage
-            2.2.1 script processing stage
-            2.2.2 script evaluation stage
-            2.2.3 script teardown stage
+            2.1 action stage
+            2.2.1 processing stage
+            2.2.2 evaluation stage
+            2.2.3 teardown stage
         """
-        self.stage_setup()
+        self._stage_setup()
 
         if self.c(self.CONFIG_ACTION):
-            self.stage_action()
+            self._stage_action()
         else:
-            self.stage_process()
-            self.stage_evaluate()
-            self.stage_teardown()
+            self._stage_process()
+            self._stage_evaluate()
+            self._stage_teardown()
 
-        self.dbgout("[STATUS] Exiting with return code '{}'".format(self.rc))
-        sys.exit(self.rc)
+        self.dbgout("Exiting with return code '{}'".format(self.retc))
+        sys.exit(self.retc)
 
     def plugin(self):
         """
-        Plugin mode - Main processing method.
+        **APPLICATION MODE:** *Plugin mode* - Main processing method.
 
         This method allows the object to be used as plugin within larger framework.
         Only the necessary setup is performed.
         """
-        self.stage_setup()
+        self._stage_setup()
+
 
     #---------------------------------------------------------------------------
-    # BUILT-IN ACTION CALLBACK METHODS
+    # BUILT-IN ACTION CALLBACK METHODS.
     #---------------------------------------------------------------------------
+
 
     def cbk_action_config_view(self):
         """
-        Parse and view script configurations.
+        **ACTION:** Parse and view application configurations.
         """
-        print("Script configurations:")
+        self.p("Script configurations:")
         tree = pydgets.widgets.TreeWidget()
-        tree.display(self.config)
+        self.p(tree.render(self.config))
 
     def cbk_action_runlog_dump(self):
         """
-        Dump given script runlog.
+        **ACTION:** Dump given application runlog.
         """
         rld = self.c(self.CONFIG_RUNLOG_DIR)
         input_file = self.c(self.CONFIG_INPUT, False)
         if not input_file:
             rlfn = os.path.join(rld, '*.runlog')
             runlog_files = sorted(glob.glob(rlfn), reverse = True)
-            if len(runlog_files):
+            if runlog_files:
                 input_file = runlog_files.pop(0)
             else:
-                print("There are no runlog files")
+                self.p("There are no runlog files")
                 return
 
-        print("Viewing script runlog '{}':".format(input_file))
+        self.p("Viewing application runlog '{}':".format(input_file))
         runlog = self.json_load(input_file)
-        print("")
+        self.p("")
         tree = pydgets.widgets.TreeWidget()
-        tree.display(runlog)
+        self.p(tree.render(runlog))
 
     def cbk_action_runlog_view(self):
         """
-        View details of given script runlog.
+        **ACTION:** View details of given application runlog.
         """
         rld = self.c(self.CONFIG_RUNLOG_DIR)
         input_file = self.c(self.CONFIG_INPUT, False)
         if not input_file:
             rlfn = os.path.join(rld, '*.runlog')
             runlog_files = sorted(glob.glob(rlfn), reverse = True)
-            if len(runlog_files):
+            if runlog_files:
                 input_file = runlog_files.pop(0)
             else:
-                print("There are no runlog files")
+                self.p("There are no runlog files")
                 return
 
-        print("Viewing script runlog '{}':".format(input_file))
+        self.p("Viewing application runlog '{}':".format(input_file))
         runlog = self.json_load(input_file)
-        print("")
+        self.p("")
         analysis = self.runlog_analyze(runlog)
 
         self.runlog_format_analysis(analysis)
 
     def cbk_action_runlogs_list(self):
         """
-        View the list of all available script runlogs.
+        **ACTION:** View list of all available application runlogs.
         """
         rld = self.c(self.CONFIG_RUNLOG_DIR)
         limit = self.c(self.CONFIG_LIMIT)
@@ -1032,18 +1390,18 @@ class BaseApp:
         for rlf in runlog_files:
             runlogtree[rld].append(rlf)
 
-        print("Listing script runlogs in directory '{}':".format(rld))
-        print("  Runlog(s) found: {:,d}".format(rlcount))
+        self.p("Listing application runlogs in directory '{}':".format(rld))
+        self.p("  Runlog(s) found: {:,d}".format(rlcount))
         if limit:
-            print("  Result limit: {:,d}".format(limit))
-        if len(runlogtree[rld]):
-            print("")
+            self.p("  Result limit: {:,d}".format(limit))
+        if runlogtree[rld]:
+            self.p("")
             tree = pydgets.widgets.TreeWidget()
-            tree.display(runlogtree)
+            self.p(tree.render(runlogtree))
 
     def cbk_action_runlogs_dump(self):
         """
-        View the list of all available script runlogs.
+        **ACTION:** View list of all available application runlogs.
         """
         rld = self.c(self.CONFIG_RUNLOG_DIR)
         limit = self.c(self.CONFIG_LIMIT)
@@ -1052,20 +1410,20 @@ class BaseApp:
         for rlf in runlog_files:
             runlogs.append((rlf, self.json_load(rlf)))
 
-        print("Dumping script runlog(s) in directory '{}':".format(rld))
-        print("  Runlog(s) found: {:,d}".format(rlcount))
+        self.p("Dumping application runlog(s) in directory '{}':".format(rld))
+        self.p("  Runlog(s) found: {:,d}".format(rlcount))
         if limit:
-            print("  Result limit: {:,d}".format(limit))
-        if len(runlogs):
-            print("")
+            self.p("  Result limit: {:,d}".format(limit))
+        if runlogs:
+            self.p("")
             tree = pydgets.widgets.TreeWidget()
-            for rl in runlogs:
-                print("Runlog '{}':".format(rl[0]))
-                tree.display(rl[1])
+            for runl in runlogs:
+                self.p("Runlog '{}':".format(runl[0]))
+                self.p(tree.render(runl[1]))
 
     def cbk_action_runlogs_evaluate(self):
         """
-        Evaluate previous script runlogs.
+        **ACTION:** Evaluate previous application runlogs.
         """
         rld = self.c(self.CONFIG_RUNLOG_DIR)
         limit = self.c(self.CONFIG_LIMIT)
@@ -1074,53 +1432,55 @@ class BaseApp:
         for rlf in runlog_files:
             runlogs.append(self.json_load(rlf))
 
-        print("Evaluating script runlogs in directory '{}':".format(rld))
-        print("  Runlog(s) found: {:,d}".format(rlcount))
+        self.p("Evaluating application runlogs in directory '{}':".format(rld))
+        self.p("  Runlog(s) found: {:,d}".format(rlcount))
         if limit:
-            print("  Result limit: {:,d}".format(limit))
-        if len(runlogs):
-            print("")
+            self.p("  Result limit: {:,d}".format(limit))
+        if runlogs:
+            self.p("")
             evaluation = self.runlogs_evaluate(runlogs)
             self.runlogs_format_evaluation(evaluation)
+
 
     #---------------------------------------------------------------------------
     # ACTION HELPERS
     #---------------------------------------------------------------------------
 
+
     def runlog_analyze(self, runlog):
         """
         Analyze given runlog.
         """
-        ct = int(time.time())
+        curt = int(time.time())
         tm_tmp = {}
         analysis = {self.RLANKEY_DURPRE: 0, self.RLANKEY_DURPROC: 0, self.RLANKEY_DURPOST: 0, self.RLANKEY_DURATIONS: {}}
         analysis[self.RLANKEY_RUNLOG]  = runlog
         analysis[self.RLANKEY_LABEL]   = runlog[self.RLKEY_TSSTR]
-        analysis[self.RLANKEY_AGE]     = ct - runlog[self.RLKEY_TS]
+        analysis[self.RLANKEY_AGE]     = curt - runlog[self.RLKEY_TS]
         analysis[self.RLANKEY_RESULT]  = runlog[self.RLKEY_RESULT]
         analysis[self.RLANKEY_COMMAND] = runlog.get(self.RLANKEY_COMMAND, runlog.get('operation', 'unknown'))
-        # Calculate script processing duration
+        # Calculate application processing duration
         analysis[self.RLANKEY_DURRUN]  = runlog[self.RLKEY_TMARKS][-1]['time'] - runlog[self.RLKEY_TMARKS][0]['time']
 
         # Calculate separate durations for all stages
-        for tm in runlog[self.RLKEY_TMARKS]:
+        for tmark in runlog[self.RLKEY_TMARKS]:
             ptrna = re.compile('^(.*)_start$')
             ptrnb = re.compile('^(.*)_stop$')
-            m = ptrna.match(tm['ident'])
-            if m:
-                mg = m.group(1)
-                tm_tmp[mg] = tm['time']
+            match = ptrna.match(tmark['ident'])
+            if match:
+                matchg = match.group(1)
+                tm_tmp[matchg] = tmark['time']
                 continue
-            m = ptrnb.match(tm['ident'])
-            if m:
-                mg = m.group(1)
-                analysis[self.RLANKEY_DURATIONS][mg] = tm['time'] - tm_tmp[mg]
-                if mg in ('stage_configure', 'stage_check', 'stage_setup'):
-                    analysis[self.RLANKEY_DURPRE] += analysis[self.RLANKEY_DURATIONS][mg]
-                elif mg in ('stage_process'):
-                    analysis[self.RLANKEY_DURPROC] += analysis[self.RLANKEY_DURATIONS][mg]
-                elif mg in ('stage_evaluate', 'stage_teardown'):
-                    analysis[self.RLANKEY_DURPOST] += analysis[self.RLANKEY_DURATIONS][mg]
+            match = ptrnb.match(tmark['ident'])
+            if match:
+                matchg = match.group(1)
+                analysis[self.RLANKEY_DURATIONS][matchg] = tmark['time'] - tm_tmp[matchg]
+                if matchg in ('stage_configure', 'stage_check', 'stage_setup'):
+                    analysis[self.RLANKEY_DURPRE] += analysis[self.RLANKEY_DURATIONS][matchg]
+                elif matchg in ('stage_process'):
+                    analysis[self.RLANKEY_DURPROC] += analysis[self.RLANKEY_DURATIONS][matchg]
+                elif matchg in ('stage_evaluate', 'stage_teardown'):
+                    analysis[self.RLANKEY_DURPOST] += analysis[self.RLANKEY_DURATIONS][matchg]
                 continue
 
         analysis[self.RLANKEY_EFFECTIVITY] = ((analysis[self.RLANKEY_DURPROC]/analysis[self.RLANKEY_DURRUN])*100)
@@ -1136,12 +1496,12 @@ class BaseApp:
             { 'label': 'Value',      'data_formating': '{:s}', 'align': '>' },
         ]
         tbody = [
-                ['Label:',   analysis[self.RLANKEY_LABEL]],
-                ['Age:',     str(datetime.timedelta(seconds=int(analysis[self.RLANKEY_AGE])))],
-                ['Command:', analysis[self.RLANKEY_COMMAND]],
-                ['Result:',  analysis[self.RLANKEY_RESULT]],
-            ]
-        tablew.display(tbody, columns = tcols, enumerate = False, header = False)
+            ['Label:',   analysis[self.RLANKEY_LABEL]],
+            ['Age:',     str(datetime.timedelta(seconds=int(analysis[self.RLANKEY_AGE])))],
+            ['Command:', analysis[self.RLANKEY_COMMAND]],
+            ['Result:',  analysis[self.RLANKEY_RESULT]],
+        ]
+        self.p(tablew.render(tbody, columns = tcols, enumerate = False, header = False))
 
         #treew = pydgets.widgets.TreeWidget()
         #treew.display(analysis)
@@ -1153,8 +1513,8 @@ class BaseApp:
         Evaluate given runlogs.
         """
         evaluation = {self.RLEVKEY_ANALYSES: []}
-        for rl in runlogs:
-            rslt = self.runlog_analyze(rl)
+        for runl in runlogs:
+            rslt = self.runlog_analyze(runl)
             evaluation[self.RLEVKEY_ANALYSES].append(rslt)
         return self._sub_runlogs_evaluate(runlogs, evaluation)
 
@@ -1163,59 +1523,34 @@ class BaseApp:
         Format runlog evaluation.
         """
         table_columns = [
-                { 'label': 'Date' },
-                { 'label': 'Age',     'data_formating': '{}',      'align': '>' },
-                { 'label': 'Runtime', 'data_formating': '{}',      'align': '>' },
-                { 'label': 'Process', 'data_formating': '{}',      'align': '>' },
-                { 'label': 'E [%]',   'data_formating': '{:6.2f}', 'align': '>' },
-                { 'label': 'Errors',  'data_formating': '{:,d}',   'align': '>' },
-                { 'label': 'Command', 'data_formating': '{}',      'align': '>' },
-                { 'label': 'Result',  'data_formating': '{}',      'align': '>' },
-            ]
+            { 'label': 'Date' },
+            { 'label': 'Age',     'data_formating': '{}',      'align': '>' },
+            { 'label': 'Runtime', 'data_formating': '{}',      'align': '>' },
+            { 'label': 'Process', 'data_formating': '{}',      'align': '>' },
+            { 'label': 'E [%]',   'data_formating': '{:6.2f}', 'align': '>' },
+            { 'label': 'Errors',  'data_formating': '{:,d}',   'align': '>' },
+            { 'label': 'Command', 'data_formating': '{}',      'align': '>' },
+            { 'label': 'Result',  'data_formating': '{}',      'align': '>' },
+        ]
         table_data = []
-        for an in evaluation[self.RLEVKEY_ANALYSES]:
+        for anl in evaluation[self.RLEVKEY_ANALYSES]:
             table_data.append(
                 [
-                    an[self.RLANKEY_LABEL],
-                    str(datetime.timedelta(seconds=int(an[self.RLANKEY_AGE]))),
-                    str(datetime.timedelta(seconds=int(an[self.RLANKEY_DURRUN]))),
-                    str(datetime.timedelta(seconds=int(an[self.RLANKEY_DURPROC]))),
-                    an[self.RLANKEY_EFFECTIVITY],
-                    len(an[self.RLANKEY_RUNLOG][self.RLKEY_ERRORS]),
-                    an[self.RLANKEY_COMMAND],
-                    an[self.RLANKEY_RESULT],
+                    anl[self.RLANKEY_LABEL],
+                    str(datetime.timedelta(seconds=int(anl[self.RLANKEY_AGE]))),
+                    str(datetime.timedelta(seconds=int(anl[self.RLANKEY_DURRUN]))),
+                    str(datetime.timedelta(seconds=int(anl[self.RLANKEY_DURPROC]))),
+                    anl[self.RLANKEY_EFFECTIVITY],
+                    len(anl[self.RLANKEY_RUNLOG][self.RLKEY_ERRORS]),
+                    anl[self.RLANKEY_COMMAND],
+                    anl[self.RLANKEY_RESULT],
                 ]
             )
-        print("General script processing statistics:")
+        self.p("General application processing statistics:")
         tablew = pydgets.widgets.TableWidget()
-        tablew.display(table_data, columns = table_columns)
+        self.p(tablew.render(table_data, columns = table_columns))
 
         self._sub_runlogs_format_evaluation(evaluation)
-
-    def runlog_dump(self, runlog, **kwargs):
-        """
-        Dump runlog.
-
-        Dump script runlog to terminal (JSON).
-        """
-        # Dump current script runlog.
-        #self.logger.debug("Script runlog >>>\n{}".format(json.dumps(runlog, sort_keys=True, indent=4)))
-        print("Script runlog >>>\n{}".format(self.json_dump(runlog, default=_json_default)))
-
-    def runlog_save(self, runlog, **kwargs):
-        """
-        Save runlog.
-
-        Save script runlog to external file (JSON).
-        """
-        # Attempt to create script runlog directory.
-        if not os.path.isdir(self.c(self.CONFIG_RUNLOG_DIR)):
-            self.logger.info("Creating runlog directory '{}'".format(self.c(self.CONFIG_RUNLOG_DIR)))
-            os.makedirs(self.c(self.CONFIG_RUNLOG_DIR))
-        rlfn = self.get_fn_runlog()
-        self.dbgout("[STATUS] Saving script runlog to file '{}'".format(rlfn))
-        self.json_save(rlfn, runlog)
-        self.logger.info("Script runlog saved to file '{}'".format(rlfn))
 
     def runlogs_list(self, **kwargs):
         """
@@ -1226,59 +1561,249 @@ class BaseApp:
         rlfn = os.path.join(self.c(self.CONFIG_RUNLOG_DIR), '*.runlog')
         rllist = sorted(glob.glob(rlfn), reverse = reverse)
         rlcount = len(rllist)
+
         if limit:
             return (rllist[:limit], rlcount)
-        else:
-            return (rllist, rlcount)
+        return (rllist, rlcount)
 
-    def pstate_dump(self, state, **kwargs):
-        """
-        Dump persistent state.
 
-        Dump script persistent state to terminal (JSON).
-        """
-        # Dump current script state.
-        #self.logger.debug("Script state >>>\n{}".format(json.dumps(state, sort_keys=True, indent=4)))
-        print("Script state >>>\n{}".format(self.json_dump(state, default=_json_default)))
+    #---------------------------------------------------------------------------
+    # INTERNAL UTILITIES.
+    #---------------------------------------------------------------------------
 
-    def pstate_save(self, state, **kwargs):
-        """
-        Save persistent state.
 
-        Save script persistent state to external file (JSON).
+    def _get_fn_runlog(self):
         """
-        sfn = self.get_fn_pstate()
-        self.dbgout("[STATUS] Saving script persistent state to file '{}'".format(sfn))
+        Return the name of the runlog file for current process.
+
+        :return: Name of the runlog file.
+        :rtype: str
+        """
+        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.runlog".format(self.runlog[self.RLKEY_TSFSF]))
+
+    def _get_fn_pstate(self):
+        """
+        Return the name of the persistent state file for current process.
+
+        :return: Name of the persistent state file.
+        :rtype: str
+        """
+        return self.c(self.CONFIG_PSTATE_FILE)
+
+    def _utils_detect_actions(self):
+        """
+        Returns the sorted list of all available actions current application is capable
+        of performing. The detection algorithm is based on string analysis of all
+        available methods. Any method starting with string ``cbk_action_`` will
+        be appended to the list, lowercased and with ``_`` characters replaced with ``-``.
+        """
+        ptrn = re.compile(self.PTRN_ACTION_CBK)
+        attrs = sorted(dir(self))
+        result = []
+        for atr in attrs:
+            if not callable(getattr(self, atr)):
+                continue
+            match = ptrn.match(atr)
+            if match:
+                result.append(atr.replace(self.PTRN_ACTION_CBK,'').replace('_','-').lower())
+        return result
+
+    def _utils_runlog_dump(self, runlog):
+        """
+        Write application runlog into ``stdout``.
+
+        :param dict runlog: Structure containing application runlog.
+        """
+        self.p("Application runlog >>>\n{}".format(self.json_dump(runlog)))
+
+    def _utils_runlog_log(self, runlog):
+        """
+        Write application runlog into logging service.
+
+        :param dict runlog: Structure containing application runlog.
+        """
+        self.p("Application runlog >>>\n{}".format(self.json_dump(runlog)))
+
+    def _utils_runlog_save(self, runlog):
+        """
+        Write application runlog to external JSON file.
+
+        :param dict runlog: Structure containing application runlog.
+        """
+        # Attempt to create application runlog directory.
+        if not os.path.isdir(self.c(self.CONFIG_RUNLOG_DIR)):
+            self.logger.info("Creating application runlog directory '%s'", self.c(self.CONFIG_RUNLOG_DIR))
+            os.makedirs(self.c(self.CONFIG_RUNLOG_DIR))
+
+        rlfn = self._get_fn_runlog()
+        self.dbgout("Saving application runlog to file '{}'".format(rlfn))
+        self.json_save(rlfn, runlog)
+        self.logger.info("Application runlog saved to file '%s'", rlfn)
+
+    def _utils_pstate_dump(self, state):
+        """
+        Write persistent state into ``stdout``.
+
+        :param dict state: Structure containing application persistent state.
+        """
+        self.p("Application persistent state >>>\n{}".format(self.json_dump(state)))
+
+    def _utils_pstate_log(self, state):
+        """
+        Write persistent state into logging service.
+
+        :param dict state: Structure containing application persistent state.
+        """
+        self.logger.info("Application persistent state >>>\n%s", self.json_dump(state))
+
+    def _utils_pstate_save(self, state):
+        """
+        Write application persistent state to external JSON file.
+
+        :param dict state: Structure containing application persistent state.
+        """
+        sfn = self._get_fn_pstate()
+        self.dbgout("Saving application persistent state to file '{}'".format(sfn))
         self.json_save(sfn, state)
-        self.logger.info("Script persistent state saved to file '{}'".format(sfn))
+        self.logger.info("Application persistent state saved to file '%s'", sfn)
+
 
     #---------------------------------------------------------------------------
-    # TOOLS
+    # SHORTCUT METHODS, HELPERS AND TOOLS.
     #---------------------------------------------------------------------------
 
-    def execute_command(self, command, can_fail=False):
+
+    def c(self, key, default = None):
         """
-        Execute given shell command
+        Shortcut method: Get given configuration value, shortcut for:
+
+            self.config.get(key, default)
+
+        :param str key: Name of the configuration value.
+        :param default: Default value to be returned when key is not set.
+        :return: Configuration value fogr given key.
         """
-        self.logger.info("Executing system command >>>\n{}".format(command))
-        #result = subprocess.run(command)
+        if default is None:
+            return self.config.get(key)
+        return self.config.get(key, default)
+
+    def cc(self, key, default = None):
+        """
+        Shortcut method: Get given core configuration value, shortcut for:
+
+            self.config[self.CORE].get(key, default)
+
+        Core configurations are special configurations under configuration key
+        ``__CORE__``, which may only either be hardcoded, or calculated from other
+        configurations.
+
+        :param str key: Name of the core configuration value.
+        :param default: Default value to be returned when key is not set.
+        :return: Core configuration value fogr given key.
+        """
+        if default is None:
+            return self.config[self.CORE].get(key)
+        return self.config[self.CORE].get(key, default)
+
+    def p(self, string, level = 0):
+        """
+        Print given string to ``sys.stdout`` with respect to ``quiet`` and ``verbosity``
+        settings.
+
+        :param str string: String to print.
+        :param int level: Required minimal verbosity level to print the message.
+        """
+        if not self.c(self.CONFIG_QUIET) and self.c(self.CONFIG_VERBOSITY) >= level:
+            print(string)
+
+    def error(self, error, retc = None, trcb = None):
+        """
+        Register given error, that occured during application run. Registering in
+        the case of this method means printing the error message to logging facility,
+        storing the message within the appropriate runlog data structure, generating
+        the traceback when required and altering the runlog result and return code
+        attributes accordingly.
+
+        :param str error: Error message to be written.
+        :param int retc: Requested return code with which to terminate the application.
+        :param Exception trcb: Optional exception object.
+        """
+        self.retc = retc if retc is not None else self.RC_FAILURE
+
+        errstr = "{}".format(error)
+        self.logger.error(errstr)
+
+        if trcb:
+            tbexc = traceback.format_tb(trcb)
+            self.logger.error("\n" + "".join(tbexc))
+
+        self.runlog[self.RLKEY_ERRORS].append(errstr)
+        self.runlog[self.RLKEY_RESULT] = self.RESULT_FAILURE
+        self.runlog[self.RLKEY_RC]     = self.retc
+
+    @staticmethod
+    def dbgout(message):
+        """
+        Routine for printing additional debug messages. The given message will be
+        printed only in case the static class variable ``FLAG_DEBUG`` flag is set
+        to ``True``. This can be done either by explicit assignment in code, or
+        using command line argument ``--debug``, which is evaluated ASAP and sets
+        the variable to ``True``. The message will be printed to ``sys.stderr``.
+
+        :param str message: Message do be written.
+        """
+        if BaseApp.FLAG_DEBUG:
+            print("* {} DBGOUT: {}".format(time.strftime('%Y-%m-%d %X', time.localtime()), message), file=sys.stderr)
+
+    @staticmethod
+    def excout(exception, retc = None):
+        """
+        Routine for displaying the exception message to the user without traceback
+        and terminating the application. This routine is intended to display information
+        about application errors, that are not caused by the application code itself
+        (like missing configuration file, non-writable directories, etc.) and that
+        can not be logged because of the fact, that the logging service was not yet
+        initialized. For that reason this method is used to handle exceptions during
+        the **__init__** and **setup** stages.
+
+        :param Exception exception: Exception object.
+        :param int retc: Requested return code with which to terminate the application.
+        """
+        retc = retc if retc is not None else BaseApp.RC_FAILURE
+
+        print("{} CRITICAL ERROR: {}".format(time.strftime('%Y-%m-%d %X', time.localtime()), exception), file=sys.stderr)
+        sys.exit(retc)
+
+    def execute_command(self, command, can_fail = False):
+        """
+        Execute given shell command.
+        """
+        self.logger.info("Executing system command >>>\n%s", command)
+
         result = None
         if can_fail:
-            result = subprocess.call(command, shell=True)
+            result = subprocess.call(command, shell = True)
         else:
-            result = subprocess.check_output(command, shell=True)
-        self.logger.debug("System command result >>>\n{}".format(pprint.pformat(result,indent=4)))
+            result = subprocess.check_output(command, shell = True)
+
+        self.logger.debug("System command result >>>\n%s", pprint.pformat(result, indent=4))
         return result
 
     def time_mark(self, ident, descr):
         """
-        Mark current time with additional identifiers and descriptions
+        Mark current time with additional identifier and description to application
+        runlog.
+
+        :param str ident: Time mark identifier.
+        :param str descr: Time mark description.
+        :return: Time mark data structure.
+        :rtype: dict
         """
         mark = {
-                'ident': ident,
-                'descr': descr,
-                'time':  time.time()
-            }
+            'ident': ident,
+            'descr': descr,
+            'time':  time.time()
+        }
         self.runlog[self.RLKEY_TMARKS].append(mark)
         return mark
 
@@ -1286,6 +1811,11 @@ class BaseApp:
     def json_dump(data, **kwargs):
         """
         Dump given data structure into JSON string.
+
+        :param dict data: Data to be dumped to JSON.
+        :param kwargs: Optional arguments to pass to :py:func:`pyzenkit.jsonconf.json_dump` method.
+        :return: Data structure as JSON string.
+        :rtype: str
         """
         return pyzenkit.jsonconf.json_dump(data, **kwargs)
 
@@ -1293,78 +1823,125 @@ class BaseApp:
     def json_save(json_file, data, **kwargs):
         """
         Save given data structure into given JSON file.
+
+        :param str json_file: Name of the JSON file to write to.
+        :param dict data: Data to be dumped to JSON.
+        :param kwargs: Optional arguments to pass to :py:func:`pyzenkit.jsonconf.json_save` method.
+        :return: Always returns ``True``.
+        :rtype: bool
         """
         return pyzenkit.jsonconf.json_save(json_file, data, **kwargs)
 
     @staticmethod
-    def json_load(json_file, **kwargs):
+    def json_load(json_file):
         """
-        Load data structure from given json file.
-        """
-        return pyzenkit.jsonconf.json_load(json_file, **kwargs)
+        Load data structure from given JSON file.
 
-    def format_progress_bar(self, percent, done, barLen = 50):
+        :param str json_file: Name of the JSON file to read from.
+        :return: Loaded data structure.
+        :rtype: dict
         """
-        Format progress bar from given values
+        return pyzenkit.jsonconf.json_load(json_file)
+
+    @staticmethod
+    def format_progress_bar(percent, bar_len = 50):
+        """
+        Format progress bar from given values.
         """
         progress = ""
-        for i in range(barLen):
-            if i < int(barLen * percent):
+        for i in range(bar_len):
+            if i < int(bar_len * percent):
                 progress += "="
             else:
                 progress += " "
         return " [%s] %.2f%%" % (progress, percent * 100)
 
-    def draw_progress_bar(self, percent, done, barLen = 50):
+    @staticmethod
+    def draw_progress_bar(percent, bar_len = 50):
         """
-        Draw progress bar on standard output terminal
+        Draw progress bar on standard output terminal.
         """
         sys.stdout.write("\r")
-        sys.stdout.write(self.format_progress_bar(percent, done, barLen))
+        sys.stdout.write(BaseApp.format_progress_bar(percent, bar_len))
         sys.stdout.flush()
 
-class _DemoBaseApp(BaseApp):
+
+#-------------------------------------------------------------------------------
+
+
+class DemoBaseApp(BaseApp):
     """
-    Minimalistic class for demonstration purposes.
+    Minimalistic class for demonstration purposes. Study implementation of this
+    class for tutorial on how to use this framework.
     """
 
-    def stage_process(self):
+    def __init__(self, name = None, description = None):
         """
-        Script lifecycle stage: PROCESSING
+        Initialize demonstration application. This method overrides the base
+        implementation in :py:func:`baseapp.BaseApp.__init__` and it aims to
+        even more simplify the application object creation.
 
-        Perform some real work (finally). Following method will call appropriate
-        callback method operation to service the selected operation.
+        :param str name: Optional application name.
+        :param str description: Optional application description.
         """
-        self.time_mark('stage_process_start', 'Start of the processing stage')
+        name        = 'demo-baseapp.py' if not name else name
+        description = 'DemoBaseApp - Demonstration application' if not description else description
 
-        # Log something to show we have reached this point of execution.
-        self.logger.info("Demo implementation for default command")
+        super().__init__(
+            name        = name,
+            description = description,
 
-        # Test direct console output with conjunction with verbosity
-        self.p("Hello world")
-        self.p("Hello world, verbosity level 1", 1)
-        self.p("Hello world, verbosity level 2", 2)
-        self.p("Hello world, verbosity level 3", 3)
-
-        # Update the persistent state to view the changes.
-        self.pstate['counter'] = self.pstate.get('counter', 0) + 1
-
-        self.time_mark('stage_process_stop', 'End of the processing stage')
-
-if __name__ == "__main__":
-    """
-    Perform the demonstration.
-    """
-    # Prepare the environment
-    if not os.path.isdir('/tmp/baseapp.py'):
-        os.mkdir('/tmp/baseapp.py')
-    BaseApp.json_save('/tmp/baseapp.py.conf', {'test_a':1})
-
-    script = _DemoBaseApp(
+            #
+            # Configure required application paths to harmless locations.
+            #
+            path_bin = '/tmp',
             path_cfg = '/tmp',
             path_log = '/tmp',
             path_tmp = '/tmp',
-            path_run = '/tmp',
-            description = 'DemoBaseApp - generic base script (DEMO)'
+            path_run = '/tmp'
         )
-    script.run()
+
+    def _sub_stage_process(self):
+        """
+        Script lifecycle stage **PROCESS**.
+        """
+        # Update the persistent state to view the changes.
+        self.pstate['counter'] = self.pstate.get('counter', 0) + 1
+
+        # Log something to show we have reached this point of execution.
+        self.logger.info("Demonstration implementation for BaseApp demo application")
+        self.logger.info("Try executing this demo with following parameters:")
+        self.logger.info("* python3 pyzenkit/baseapp.py --help")
+        self.logger.info("* python3 pyzenkit/baseapp.py --verbose")
+        self.logger.info("* python3 pyzenkit/baseapp.py --verbose --verbose")
+        self.logger.info("* python3 pyzenkit/baseapp.py --verbose --verbose --verbose")
+        self.logger.info("* python3 pyzenkit/baseapp.py --debug")
+        self.logger.info("* python3 pyzenkit/baseapp.py --log-level debug")
+        self.logger.info("* python3 pyzenkit/baseapp.py --pstate-dump")
+        self.logger.info("* python3 pyzenkit/baseapp.py --runlog-dump")
+        self.logger.info("Number of BaseApp runs from persistent state: '%d'", self.pstate.get('counter'))
+
+        # Test direct console output with conjunction with verbosity levels.
+        self.p("Hello world from BaseApp")
+        self.p("Hello world from BaseApp, verbosity level 1", 1)
+        self.p("Hello world from BaseApp, verbosity level 2", 2)
+        self.p("Hello world from BaseApp, verbosity level 3", 3)
+
+
+#-------------------------------------------------------------------------------
+
+#
+# Perform the demonstration.
+#
+if __name__ == "__main__":
+
+    # Prepare demonstration environment.
+    APP_NAME = 'demo-baseapp.py'
+    BaseApp.json_save('/tmp/{}.conf'.format(APP_NAME), {'test_a':1})
+    try:
+        os.mkdir('/tmp/{}'.format(APP_NAME))
+    except FileExistsError:
+        pass
+
+    BASE_APP = DemoBaseApp(APP_NAME)
+    BASE_APP.run()

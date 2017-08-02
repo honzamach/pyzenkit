@@ -5,3 +5,5 @@ pyzenkit.zenscript
 
 .. automodule:: pyzenkit.zenscript
    :members:
+   :private-members:
+   :special-members:
