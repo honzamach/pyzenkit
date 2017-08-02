@@ -13,3 +13,4 @@
 /archive/pyzenkit*
 /build/
 /dist/pyzenkit*
+/doc/_build/
