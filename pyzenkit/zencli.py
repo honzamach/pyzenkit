@@ -15,6 +15,7 @@
 #    [1] https://lextoumbourou.com/blog/posts/dynamically-loading-modules-and-classes-in-python/
 #-------------------------------------------------------------------------------
 
+
 import sys
 import pkgutil
 import argparse
@@ -22,10 +23,6 @@ import logging
 import importlib
 from pprint import pprint
 
-#
-# Global variables
-#
-VERSION = "0.1"      # Version information
 
 class ZenCLIModule:
     """

@@ -32,6 +32,7 @@ with open('metadata.json') as json_metadata_file:
 def setup(app):
     app.add_config_value('build_suite', custom_metadata['suite'], 'env')
 
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
