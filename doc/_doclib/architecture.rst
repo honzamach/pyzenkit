@@ -1,3 +1,5 @@
+.. _section-pyzenkit-architecture:
+
 Application architecture
 ================================================================================
 
