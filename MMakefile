@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# This file is part of PyZenKit package.
+# MASTER MAKEFILE FOR PYZENKIT PACKAGE
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
 # Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
@@ -9,29 +9,71 @@
 # it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
-DOCDIR = doc
+DIR_LIB = pyzenkit
+
 DIST_SIZE:=$(shell ls dist | wc -l)
 
-all: archive bdist deploy
+#
+# Default make target.
+#
+all: docs archive bdist deploy
 
 build: archive bdist
+
+buildbot: bdist
+
+check: pyflakes pylint test
+
+
+#-------------------------------------------------------------------------------
+
 
 help:
 	$(info List of possible make targets:)
 	$(info   )
-	$(info   * all:     archive previous packages, build new distribution and deploy to PyPI [default])
-	$(info   * build:   archive previous packages and build new distribution)
-	$(info   * test:    run unit tests)
+	$(info   * all: archive previous packages, build new distribution and deploy to PyPI [default])
+	$(info   * build: archive previous packages and build new distribution)
+	$(info   * buildbot: build new distribution using buildbot automated system)
+	$(info   * docs: generate project documentation)
+	$(info   * check: perform extensive code checking)
+	$(info      = pyflakes: check source code with pyflakes)
+	$(info      = pylint: check source code with pylint)
+	$(info      = test: run unit tests with nosetest)
 	$(info   * archive: archive previous packages)
 	$(info   * bdist:   build new distribution)
 	$(info   * install: install distribution on local machine)
 	$(info   * deploy:  deploy to PyPI)
 	$(info   )
 
-# Perform unit tests
+
+#-------------------------------------------------------------------------------
+
+
+docs: FORCE
+	echo "*** Generating project documentation ***"
+	#make clean
+	#make apidoc
+	make html
+
+
+#-------------------------------------------------------------------------------
+
+
+pyflakes: FORCE
+	echo "*** Checking code with pyflakes ***"
+	python3 -m pyflakes $(DIR_LIB)/*.py
+
+pylint: FORCE
+	echo "*** Checking code with pylint ***"
+	python3 -m pylint $(DIR_LIB)/*.py --rcfile .pylintrc
+
 test: FORCE
-	$(info Testing source code)
+	echo "*** Checking code with nosetests ***"
 	nosetests
+
+
+#-------------------------------------------------------------------------------
+
 
 # Move old distribution files to archive directory
 archive: FORCE
