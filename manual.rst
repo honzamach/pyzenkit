@@ -14,8 +14,8 @@ Welcome to PyZenKit - Python script and daemon toolkit's documentation!
    :caption: Contents:
 
    README
-   doc/_pages/architecture
-   doc/_pages/api
+   doc/_doclib/architecture
+   doc/_doclib/api
 
 Indices and tables
 ================================================================================
