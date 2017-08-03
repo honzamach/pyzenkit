@@ -947,7 +947,44 @@ class DemoZenDaemon(ZenDaemon):
     """
     Minimalistic class for demonstration purposes.
     """
-    pass
+    def __init__(self, name = None, description = None):
+        """
+        Initialize demonstration script. This method overrides the base
+        implementation in :py:func:`baseapp.BaseApp.__init__` and it aims to
+        even more simplify the script object creation.
+
+        :param str name: Optional script name.
+        :param str description: Optional script description.
+        """
+        name        = 'demo-zendaemon.py' if not name else name
+        description = 'DemoZenDaemon - Demonstration daemon' if not description else description
+
+        super().__init__(
+            name        = name,
+            description = description,
+
+            #
+            # Configure required application paths to harmless locations.
+            #
+            path_bin = '/tmp',
+            path_cfg = '/tmp',
+            path_log = '/tmp',
+            path_tmp = '/tmp',
+            path_run = '/tmp',
+
+            # Force dhe demonstration daemon to stay in foreground.
+            default_no_daemon = True,
+
+            # Define internal daemon components.
+            components = [
+                DemoDaemonComponent()
+            ],
+
+            # Schedule initial daemon events.
+            schedule = [
+                ('default',)
+            ]
+        )
 
 #-------------------------------------------------------------------------------
 
@@ -957,30 +994,12 @@ class DemoZenDaemon(ZenDaemon):
 if __name__ == "__main__":
 
     # Prepare demonstration environment.
-    pyzenkit.baseapp.BaseApp.json_save('/tmp/demo-zendaemon.py.conf', {'test_a':1})
+    DMN_NAME = 'demo-zendaemon.py'
+    pyzenkit.baseapp.BaseApp.json_save('/tmp/{}.conf'.format(DMN_NAME), {'test_a':1})
     try:
-        os.mkdir('/tmp/demo-zendaemon.py')
+        os.mkdir('/tmp/{}'.format(DMN_NAME))
     except FileExistsError:
         pass
 
-    ZENDAEMON = DemoZenDaemon(
-        name        = 'demo-zenscript.py',
-        description = 'DemoZenDaemon - Demonstration daemon',
-
-        #
-        # Configure required application paths to harmless locations.
-        #
-        path_bin = '/tmp',
-        path_cfg = '/tmp',
-        path_log = '/tmp',
-        path_tmp = '/tmp',
-        path_run = '/tmp',
-
-        default_no_daemon = True,
-
-        schedule = [('default',)],
-        components = [
-            DemoDaemonComponent()
-        ]
-    )
+    ZENDAEMON = DemoZenDaemon(DMN_NAME)
     ZENDAEMON.run()

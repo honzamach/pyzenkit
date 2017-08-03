@@ -29,7 +29,7 @@ import pyzenkit.zendaemon
 #
 # Global variables
 #
-DMN_NAME       = 'test_zendaemon.py'              # Name of the daemon process
+DMN_NAME       = 'test-zendaemon.py'              # Name of the daemon process
 JSON_FILE_NAME = '/tmp/daemon-state.json'         # Name of the test JSON file
 CFG_FILE_NAME  = '/tmp/{}.conf'.format(DMN_NAME)  # Name of the daemon configuration file
 CFG_DIR_NAME   = '/tmp/{}'.format(DMN_NAME)       # Name of the daemon configuration directory
@@ -43,18 +43,8 @@ class TestPyzenkitZenDaemon(unittest.TestCase):
         except FileExistsError:
             pass
 
-        self.obj = pyzenkit.zendaemon._DemoZenDaemon(
-            name = DMN_NAME,
-            path_cfg = '/tmp',
-            path_log = '/tmp',
-            path_tmp = '/tmp',
-            path_run = '/tmp',
-            description = 'DemoZenDaemon - generic daemon (DEMO)',
-            schedule = [('default',)],
-            components = [
-                pyzenkit.zendaemon._DemoDaemonComponent()
-            ]
-        )
+        self.obj = pyzenkit.zendaemon.DemoZenDaemon(name = DMN_NAME)
+
     def tearDown(self):
         os.remove(CFG_FILE_NAME)
         shutil.rmtree(CFG_DIR_NAME)
