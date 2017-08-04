@@ -394,7 +394,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             (self.CONFIG_UMASK,          0o002),
             (self.CONFIG_STATS_INTERVAL, 300),
             (self.CONFIG_PARALEL,        False),
-        )
+        ) + cfgs
         return super()._init_config(cfgs, **kwargs)
 
     def _init_argparser(self, **kwargs):
