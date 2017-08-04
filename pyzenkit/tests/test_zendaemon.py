@@ -55,5 +55,24 @@ class TestPyzenkitZenDaemon(unittest.TestCase):
         """
         self.assertTrue(True)
 
+    def test_02_calc_statistics(self):
+        """
+        Perform the test of statistics calculation.
+        """
+        self.maxDiff = None
+
+        result = pyzenkit.zendaemon.calc_statistics(
+            {'cnt_test_a1': 50, 'cnt_test_a2': 100, 'sub': {'cnt_test_b1': 500, 'cnt_test_b2': 1000}},
+            {},
+            50
+        )
+        self.assertEqual(result, {
+            'cnt_test_a1': {'cnt': 50, 'inc': 50, 'pct': 100.0, 'spd': 1.0},
+            'cnt_test_a2': {'cnt': 100, 'inc': 100, 'pct': 100.0, 'spd': 2.0},
+            'sub': {
+                'cnt_test_b1': {'cnt': 500, 'inc': 500, 'pct': 100.0, 'spd': 10.0},
+                'cnt_test_b2': {'cnt': 1000, 'inc': 1000, 'pct': 100.0, 'spd': 20.0}}}
+        )
+
 if __name__ == "__main__":
     unittest.main()

@@ -217,6 +217,31 @@ class EventQueueManager:
 #-------------------------------------------------------------------------------
 
 
+def calc_statistics(stats_cur, stats_prev, tdiff):
+    """
+    Calculate statistics.
+    """
+    result = {}
+    for key in stats_cur:
+        if isinstance(stats_cur[key], dict):
+            result[key] = calc_statistics(stats_cur[key], stats_prev.get(key, {}), tdiff)
+        else:
+            result[key] = {
+                # Absolute count.
+                'cnt':  stats_cur[key],
+                # Increase count (delta from previous value).
+                'inc':  stats_cur[key] - stats_prev.get(key, 0),
+                # Processing speed (#/s).
+                'spd': (stats_cur[key] - stats_prev.get(key, 0)) / tdiff,
+                # Percentage increase count.
+                'pct': (stats_cur[key] - stats_prev.get(key, 0)) / (stats_cur[key] / 100)
+            }
+    return result
+
+
+#-------------------------------------------------------------------------------
+
+
 class ZenDaemonComponentException(pyzenkit.baseapp.ZenAppProcessException):
     """
     Describes problems specific to daemon components.
@@ -260,25 +285,6 @@ class ZenDaemonComponent:
             'statistics': self.statistics_cur
         }
 
-    @staticmethod
-    def calc_statistics(stats_cur, stats_prev, tdiff):
-        """
-        Calculate daemon component statistics.
-        """
-        result = {}
-        for key in stats_cur:
-            result[key] = {
-                # Absolute count.
-                'cnt':  stats_cur[key],
-                # Increase from previous value.
-                'inc':  stats_cur[key] - stats_prev.get(key, 0),
-                # Processing speed (#/s)
-                'spd': (stats_cur[key] - stats_prev.get(key, 0)) / tdiff,
-                # Percentage increase.
-                'pct': (stats_cur[key] - stats_prev.get(key, 0)) / (stats_cur[key] / 100)
-            }
-        return result
-
     def get_statistics(self):
         """
         Calculate processing statistics
@@ -286,7 +292,7 @@ class ZenDaemonComponent:
         curts = time.time()
         tdiff = curts - self.statistics_ts
 
-        stats = self.calc_statistics(self.statistics_cur, self.statistics_prev, tdiff)
+        stats = calc_statistics(self.statistics_cur, self.statistics_prev, tdiff)
 
         self.statistics_prev = copy.copy(self.statistics_cur)
         self.statistics_ts = curts
@@ -940,6 +946,7 @@ class DemoDaemonComponent(ZenDaemonComponent):
         """
         daemon.queue.schedule('default')
         daemon.logger.info("Working")
+        self.inc_statistic('cnt_default')
         time.sleep(1)
         return (daemon.FLAG_CONTINUE, None)
 
