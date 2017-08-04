@@ -34,7 +34,7 @@ Common application options
 Following configuration options are available for all applications based on
 :py:mod:`pyzenkit.baseapp`:
 
-.. include:: _inc.bin.app-opt.rst
+.. include:: _inc_bin.cfg-app.rst
 
 Common script options
 ````````````````````````````````````````````````````````````````````````````````
@@ -42,7 +42,7 @@ Common script options
 Following configuration options are available on top of common applicationsoptions
 for all applications based on :py:mod:`pyzenkit.zenscript`:
 
-.. include:: _inc.bin.script-opt.rst
+.. include:: _inc_bin.cfg-script.rst
 
 Common daemon options
 ````````````````````````````````````````````````````````````````````````````````
@@ -50,7 +50,7 @@ Common daemon options
 Following configuration options are available on top of common applicationsoptions
 for all applications based on :py:mod:`pyzenkit.zendaemon`:
 
-.. include:: _inc.bin.daemon-opt.rst
+.. include:: _inc_bin.cfg-daemon.rst
 
 
 Configuration files and directories
