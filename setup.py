@@ -29,7 +29,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name = 'pyzenkit',
-    version = '0.34',
+    version = '0.35',
     description = 'Python 3 script and daemon toolkit',
     long_description = long_description,
     classifiers = [

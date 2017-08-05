@@ -11,4 +11,4 @@
 # it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
-__version__ = "0.34"
+__version__ = "0.35"
