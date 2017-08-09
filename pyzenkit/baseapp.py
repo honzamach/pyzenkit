@@ -1333,7 +1333,7 @@ class BaseApp:
         """
         self.p("Script configurations:")
         tree = pydgets.widgets.TreeWidget()
-        self.p(tree.render(self.config))
+        self.p("\n".join(tree.render(self.config)))
 
     def cbk_action_runlog_dump(self):
         """
@@ -1354,7 +1354,7 @@ class BaseApp:
         runlog = self.json_load(input_file)
         self.p("")
         tree = pydgets.widgets.TreeWidget()
-        self.p(tree.render(runlog))
+        self.p("\n".join(tree.render(runlog)))
 
     def cbk_action_runlog_view(self):
         """
@@ -1397,7 +1397,7 @@ class BaseApp:
         if runlogtree[rld]:
             self.p("")
             tree = pydgets.widgets.TreeWidget()
-            self.p(tree.render(runlogtree))
+            self.p("\n".join(tree.render(runlogtree)))
 
     def cbk_action_runlogs_dump(self):
         """
@@ -1419,7 +1419,7 @@ class BaseApp:
             tree = pydgets.widgets.TreeWidget()
             for runl in runlogs:
                 self.p("Runlog '{}':".format(runl[0]))
-                self.p(tree.render(runl[1]))
+                self.p("\n".join(tree.render(runl[1])))
 
     def cbk_action_runlogs_evaluate(self):
         """
@@ -1501,10 +1501,10 @@ class BaseApp:
             ['Command:', analysis[self.RLANKEY_COMMAND]],
             ['Result:',  analysis[self.RLANKEY_RESULT]],
         ]
-        self.p(tablew.render(tbody, columns = tcols, enumerate = False, header = False))
+        self.p("\n".join(tablew.render(tbody, columns = tcols, enumerate = False, header = False)))
 
-        #treew = pydgets.widgets.TreeWidget()
-        #treew.display(analysis)
+        treew = pydgets.widgets.TreeWidget()
+        self.p("\n".join(treew.render(analysis)))
 
         self._sub_runlog_format_analysis(analysis)
 
@@ -1548,7 +1548,7 @@ class BaseApp:
             )
         self.p("General application processing statistics:")
         tablew = pydgets.widgets.TableWidget()
-        self.p(tablew.render(table_data, columns = table_columns))
+        self.p("\n".join(tablew.render(table_data, columns = table_columns)))
 
         self._sub_runlogs_format_evaluation(evaluation)
 
