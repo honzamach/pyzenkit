@@ -85,7 +85,7 @@ deps: deps-python
 
 deps-python: FORCE
 	@echo "\n${GREEN}*** Installing Python dependencies ***${NC}\n"
-	@sudo pip3 install -r requirements.pip --upgrade
+	@pip3 install -r requirements.pip --upgrade
 
 
 #-------------------------------------------------------------------------------
@@ -127,11 +127,11 @@ bdist: FORCE
 
 install: FORCE
 	@echo "\n${GREEN}*** Performing local installation ***${NC}\n"
-	@sudo pip3 install dist/pyzenkit*.whl --upgrade
+	@pip3 install dist/pyzenkit*.whl --upgrade
 
 deploy: FORCE
 	@echo "\n${GREEN}*** Deploying packages to PyPI ***${NC}\n"
-	twine upload dist/* --skip-existing
+	@twine upload dist/* --skip-existing
 
 # Empty rule as dependency will force make to always perform target
 # Source: https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
