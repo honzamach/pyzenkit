@@ -68,7 +68,7 @@ class ZenCLI:
 
         logging_level = getattr(logging, self.arguments.log.upper(), None)
         if not isinstance(logging_level, int):
-            raise ValueError('Invalid log level: %s' % loglevel)
+            raise ValueError('Invalid log level: %s' % logging_level)
         logging.basicConfig(format='%(asctime)s %(message)s', level=logging_level)
 
     def __del__(self):
