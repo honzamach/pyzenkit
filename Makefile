@@ -143,7 +143,8 @@ pyflakes-test: FORCE
 	@echo "\n${GREEN}*** Checking test files with pyflakes ***${NC}\n"
 	-@python3 -m pyflakes $(DIR_LIB)/tests/*.py
 
-pylint: pylint-lib pylint-test
+pylint: FORCE
+	@echo "\n${GREEN}*** Checking test files with pylint - DISABLED ***${NC}\n"
 
 pylint-lib: FORCE
 	@echo "\n${GREEN}*** Checking code with pylint ***${NC}\n"
