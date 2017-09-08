@@ -15,21 +15,32 @@
 #   https://packaging.python.org/en/latest/
 #   https://python-packaging.readthedocs.io/en/latest/index.html
 
+import sys
+import os
+
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
-from os import path
 
-here = path.abspath(path.dirname(__file__))
+#
+# Import local version of pynspect library, so that we can insert correct version
+# number into documentation.
+#
+sys.path.insert(0, os.path.abspath('.'))
+import pyzenkit
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+#-------------------------------------------------------------------------------
 
 # Get the long description from the README file
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
     name = 'pyzenkit',
-    version = '0.37',
+    version = pyzenkit.__version__,
     description = 'Python 3 script and daemon toolkit',
     long_description = long_description,
     classifiers = [
