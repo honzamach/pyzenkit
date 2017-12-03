@@ -13,8 +13,6 @@
 
 DIR_LIB = pyzenkit
 
-DIST_SIZE:=$(shell ls dist | wc -l)
-
 SPHINXOPTS      =
 SPHINXBUILD     = sphinx-build
 SPHINXPROJ      = PyZenKit
