@@ -13,84 +13,157 @@
 
 
 """
-This module provides base implementation of generic processing application with
-many usefull features including (but not limited to) following:
+This module provides base implementation of generic console application represented
+by the :py:class:`pyzenkit.baseapp.BaseApp` class with many usefull features including
+(but not limited to) the following:
 
 Application configuration service
     The base application provides tools for loading configurations from multiple
-    sources and merging it into single dictionary. Currently the following
-    configuration sources are available:
+    sources and merging them all into single dictionary. This is then available
+    to developers as public class attribute ``config``.
 
-    * Optional configuration via configuration directory.
-    * Optional configuration via external JSON configuration file.
+    Currently the following configuration sources are available:
+
+    * Optional configuration via configuration directory. All JSON files in given
+      directory are loaded and then merged together.
+    * Optional configuration via single JSON configuration file.
     * Optional configuration via command line arguments and options.
 
+Command line argument parsing service
+    The base application preconfigures an instance of standard :py:class:`argparse.ArgumentParser`
+    class for parsing command line arguments and prepopulates in with a set of built-in
+    options and arguments. This instance can be then further modified and enhanced
+    in subclass by the user.
+
 Logging service
-    The base application is capable of automated setup of logging service based
-    on configuration values into followin destinations:
+    The base application is capable of automated setup of :py:class:`logging.Logger`
+    logging service. Logger parameters like threshold level, or target file name
+    are fully configurable. Currently following destinations are supported:
 
     * Optional logging to console.
     * Optional logging to text file.
 
 Persistent state service
-    The base application contains optinal persistent state feature, which is capable
-    of storing data between multiple executions. Simple JSON files are used for the
-    data storage.
+    The base application contains optional persistent state feature, which is intended
+    for storing or passing data between multiple executions of the same application.
+    The feature is implemented as a simple dictionary, that is populated from simple
+    JSON file on startup and written back on teardown.
 
 Application runlog service
     The base application provides optional runlog service, which is a intended to
     provide storage for relevant data and results during the processing and enable
-    further analysis later. Simple JSON files are used for the data storage.
+    further analysis later. The feature is implemented as simple dictionary, that
+    is written into JSON file on teardown.
 
 Plugin system
-    The application provides tools for writing and using plugins, that can be used
+    The base application provides tools for writing and using plugins, that can be used
     to further enhance the functionality of application and improve code reusability
     by composing the application from smaller building blocks.
 
 Application actions
-    The application provides tools for quick actions. These are intended to be used
-    for application management tasks such as vieving or validating configuration
-    without executing the application itself, listing and evaluating runlogs and
-    so on. There is a number of built-in actions and more can be implemented very
-    easily.
+    The base application provides tools for quick **actions**. These **actions** are
+    intended to be used for global application management tasks such as vieving or
+    validating configuration without executing the application itself, listing or
+    evaluating runlogs and so on. There is a number of built-in actions and more
+    can be implemented very easily.
+
+The application is designed to provide all of these usefull features by default and
+with as less as possible work, while also maintaining high customizability. This goal
+is achived by following measures:
+
+* Most of the hardcoded features are somehow customizable by configuration file
+  keys or command line options.
+* There are many callback hooks prepared for subclasses, that can be used to add
+  the desired functionality.
+* If you are more familiar with the code, you may override the default implementation
+  of almost any method and provide your own functionality, or call the parent implementation
+  at some point in the new method.
+
+Please browse the source code, there is an example implementation in
+:py:class:`pyzenkit.baseapp.DemoBaseApp` class.
 
 
 Application usage modes
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Applications created based on this framework can be utilized in two work modes:
+Applications created using this framework can be utilized in two work modes:
 
 * **run**
 * **plugin**
 
-In a **run** mode all application features are configured and desired action or
-application code is immediatelly executed.
+In the **run** mode all application features are initialized and configured and
+desired action or application processing code is immediatelly executed.
 
-In a **plugin** mode the application is only configured and any other interactions
-must be performed manually. This approach enables users to plug the apllication into
-another one on a wider scope. One example use case may be the implementation of an
-user command line interface that controls multiple applications (much like *git*).
+In the **plugin** mode the application is only initialized and configured and any
+other interactions must be performed manually by calling appropriate methods. This
+approach enables users to plug one apllication into another one on a wider scope.
+One example use case of this feature may be the implementation of an user command
+line interface that controls multiple applications (for example like *git* executable
+controls almost everything in Git universe).
+
+
+Application actions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Applications created based on this framework come with built-in support for **actions**.
+The **action** is a designation for some kind of support task, that does not relate
+to actual purpose of the application. The **actions** however are executed within the same
+environment and have access to the whole application, so they are perfect for simple
+tasks like configuration validation. The **actions** are also much more simple and
+when executing an action the application does not go through all life-cycle stages
+(see below).
+
+Currently following **actions** are built-in and supported:
+
+**config-view**
+    Display current configuration tree.
+
+**runlog-dump**
+    Simple dump of chosen application runlog.
+
+**runlog-view**
+    View chosen application runlog (nicer display with calculated statistics).
+
+**runlogs-dump**
+    Simple dump of all application runlogs.
+
+**runlogs-list**
+    View list of all application runlogs.
+
+**runlogs-evaluate**
+    View evaluated statistics of all application runlogs.
+
+Actions may be executed by selecting desired action by command line argument::
+
+    path/to/baseapp.py --action config-view
+    path/to/baseapp.py --action=config-view
+
+Action may be selected permanently inside configuration file under the dictionary
+key ``action``.
 
 
 Application life-cycle
-^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Depending on the mode of operation (**run** or **plugin**) the application code goes
-through a different set of stages during its life span.
+through a different set of stages during its life span. See subsections below for
+more details on each life-cycle stage. The life-cycle is implemented partly in the
+:py:func:`pyzenkit.baseapp.BaseApp.__init__` method and mostly in
+:py:func:`pyzenkit.baseapp.BaseApp.run` method.
 
-In a **plugin** mode the following stages are performed:
+In the **plugin** mode the following stages are performed:
 
 * **__init__**
 * **setup**
 
-In a **run** mode the following stages are performed in case some *action* is being
-handled:
+In the **run** mode the following stages are performed in case some **action** is
+being handled:
 
 * **__init__**
 * **setup**
 * **action**
 
-In a **run** mode the following stages are performed in case of normal processing:
+In the **run** mode the following stages are performed in case of normal processing:
 
 * **__init__**
 * **setup**
@@ -98,19 +171,22 @@ In a **run** mode the following stages are performed in case of normal processin
 * **evaluate**
 * **teardown**
 
-Stage __init__
-``````````````
 
-The **__init__** stage is responsible for creating and basic initialization of
+Stage __init__
+````````````````````````````````````````````````````````````````````````````````
+
+The **__init__** stage is responsible for creating and basic default initialization of
 application object. No exception should occur or be raised during the initialization
 stage and the code should always work regardles of environment setup, so no files
 should be opened, etc. Any exception during this stage will intentionally not get
-handled in any way and result in full traceback dump and immediate application
+handled in any way and will result in full traceback dump and immediate application
 termination.
 
-These more advanced setup tasks should be performed during the
-**setup** stage, which is capable of intelligent catching and displaying/logging
-of any exceptions. There are following substages in this stage:
+All more advanced setup tasks should be performed during the **setup** stage, which is
+capable of intelligent catching and displaying/logging of any exceptions.
+
+This stage is implemented in the :py:func:`BaseApp.__init__` method and there are
+following substages in this stage:
 
 * init command line argument parser: :py:func:`BaseApp._init_argparser`
 * parse command line arguments: :py:func:`BaseApp._parse_cli_arguments`
@@ -123,12 +199,19 @@ of any exceptions. There are following substages in this stage:
 Any of the previous substages may be overriden in a subclass to enhance or alter
 the functionality, but always be sure of what you are doing.
 
-Stage *setup*
-`````````````
 
-The **setup** stage is responsible for bootstrapping the whole application. Any failure
-It
-consists of couple of substages:
+Stage *setup*
+````````````````````````````````````````````````````````````````````````````````
+
+The **setup** stage is responsible for bootstrapping and configuring of the whole
+application. Any exception, that is the instance of :py:class:`ZenAppSetupException`
+will be catched, only simple message will be displayed to the user and application
+will terminate. This use case represents the case when the error is on the user`s side,
+for example non-existent configuration file, etc. In any other case the application will
+terminate with full traceback print.
+
+This stage is implemented in the :py:func:`BaseApp._stage_setup` method and there
+are following substages in this stage:
 
 * setup configuration: :py:func:`BaseApp._stage_setup_configuration`
 * setup user and group privileges: :py:func:`BaseApp._stage_setup_privileges`
@@ -138,95 +221,130 @@ consists of couple of substages:
 * subclass hook for additional setup: :py:func:`BaseApp._sub_stage_setup`
 * setup dump: :py:func:`BaseApp._stage_setup_dump`
 
-Stage *action*
-``````````````
+Any of the previous substages may be overriden in a subclass to enhance or alter
+the functionality, but always be sure of what you are doing.
 
-The **action** stage takes care of executing built-in actions.
+
+Stage *action*
+````````````````````````````````````````````````````````````````````````````````
+
+The **action** stage takes care of executing built-in actions. See appropriate
+section above for list of all available built-in actions.
+
+More actions can be implemented very easily. The action callback methods just
+have to follow these requirements to be autodetected by the application engine:
+
+* Action callback must be method without any mandatory arguments.
+* Action callback method name must begin with ``cbk_action_`` prefix.
+* Action name in the method name after the prefix must also be `snake_cased``.
+* Action name will be calculated by replacing ``_`` with ``-``.
+
+Following are examples of valid action callbacks::
+
+    cbk_action_test(self):         # Will be mapped to 'test' action.
+    cbk_action_another_test(self): # Will be mapped to 'another-test' action.
+
+When a method is implemented according to these guidelines, it will be automatically
+recognized and executable.
+
+This stage is implemented in the :py:func:`BaseApp._stage_action` method.
+
+Please see the implementation of existing built-in actions for examples.
+
 
 Stage *process*
-```````````````
+````````````````````````````````````````````````````````````````````````````````
 
-The **process** stage is supposed to perform any required task and process runlog.
+The **process** stage is supposed to perform the required task(s). This stage is
+implemented in the :py:func:`BaseApp._stage_process` method. It is a wrapper
+method, that takes care of exception catching and the application must provide
+its own implementation of template method :py:func:`BaseApp._sub_stage_process`,
+which is being called from the wrapper and should contain actual processing code.
+
 
 Stage *evaluate*
-````````````````
+````````````````````````````````````````````````````````````````````````````````
 
-The **evaluate** stage is supposed to perform any evaluation of current runlog.
+The **evaluate** stage is supposed to perform any required evaluations of current
+runlog. Currently, there are no built-in evaluations.
+
 
 Stage *teardown*
-````````````````
+````````````````````````````````````````````````````````````````````````````````
 
 The **teardown** stage is supposed to perform any cleanup tasks before the application
-exits. It consists of couple of substages:
+exits.
 
-* :py:func:`BaseApp._sub_stage_teardown`
-* :py:func:`BaseApp._stage_teardown_pstate`
-* :py:func:`BaseApp._stage_teardown_runlog`
+This stage is implemented in the :py:func:`BaseApp._stage_teardown` method and there
+are following substages in this stage:
+
+* subclass hook for additional teardown actions: :py:func:`BaseApp._sub_stage_teardown`
+* save persistent state: :py:func:`BaseApp._stage_teardown_pstate`
+* save runlog: :py:func:`BaseApp._stage_teardown_runlog`
+
+
+Module contents
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* :py:class:`ZenAppException`
+    * :py:class:`ZenAppSetupException`
+    * :py:class:`ZenAppProcessException`
+    * :py:class:`ZenAppEvaluateException`
+    * :py:class:`ZenAppTeardownException`
+* :py:class:`ZenAppPlugin`
+* :py:class:`BaseApp`
+* :py:class:`DemoBaseApp`
 
 
 Programming API
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The application features mentioned in this document are available to the user/developer
+either as public attributes of the :py:class:`pyzenkit.baseapp.BaseApp` class,
+or as public methods:
 
 * public attributes:
 
-    * ``self.name``
-    * ``self.paths``
-    * ``self.runlog``
-    * ``self.config``
-    * ``self.logger``
-    * ``self.pstate``
-    * ``self.retc``
+    * :py:attr:`BaseApp.name` - Name of the application.
+    * :py:attr:`BaseApp.paths` - Paths to various locations, like config or temp directories.
+    * :py:attr:`BaseApp.runlog` - Writable dictionary containing the application runlog.
+    * :py:attr:`BaseApp.config` - Dictionary containing final merged application configuration.
+    * :py:attr:`BaseApp.logger` - Configured instance of :py:mod:`logging.Logger` logger.
+    * :py:attr:`BaseApp.pstate` - Writable dictionary containing the application persistent state.
+    * :py:attr:`BaseApp.retc` - Exit status code as integer.
 
 * public methods:
 
-    * ``self.c``
-    * ``self.cc``
-    * ``self.p``
-    * ``self.dbgout``
-    * ``self.excout``
-    * ``self.error``
-    * ``self.json_dump``
-    * ``self.json_load``
-    * ``self.json_save``
-
-
-Application actions
-^^^^^^^^^^^^^^^^^^^
-
-* *config-view*
-* *runlog-dump*
-* *runlog-view*
-* *runlogs-dump*
-* *runlogs-list*
-* *runlogs-evaluate*
+    * :py:func:`BaseApp.c` - Shortcut method for accessing the `self.config.get(key, default)`
+    * :py:func:`BaseApp.cc` - Shortcut method for accessing the `self.config[self.CORE].get(key, default)`
+    * :py:func:`BaseApp.p` - Method for printing to terminal honoring the ``verbose`` setting.
+    * :py:func:`BaseApp.dbgout` - Method for printing additional debug messages honoring the ``debug`` setting.
+    * :py:func:`BaseApp.excout` - Method for printing exception without traceback and terminating the application.
+    * :py:func:`BaseApp.error` - Register given error into application.
+    * :py:func:`BaseApp.json_dump` - Utility method for dumping data structure into JSON string.
+    * :py:func:`BaseApp.json_load` - Utility method for loading JSON file.
+    * :py:func:`BaseApp.json_save` - Utility method for writing data structure into JSON file.
 
 
 Subclass extension hooks
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The base application provides following extension hooks, that can be used in subclasses
+to enhance the base functionality. There is one hook for each application life-cycle
+stage:
 
 * :py:func:`BaseApp._sub_stage_init`
 * :py:func:`BaseApp._sub_stage_setup`
 * :py:func:`BaseApp._sub_stage_process`
 * :py:func:`BaseApp._sub_stage_teardown`
+
+There are also couple of methods for runlog analysis and evaluation, that can be
+used to enhance the default output of ``runlog-*`` built-in actions:
+
 * :py:func:`BaseApp._sub_runlog_analyze`
 * :py:func:`BaseApp._sub_runlog_format_analysis`
 * :py:func:`BaseApp._sub_runlogs_evaluate`
 * :py:func:`BaseApp._sub_runlogs_format_evaluation`
-
-
-Module contents
-^^^^^^^^^^^^^^^
-
-* :py:class:`ZenAppException`
-
-    * :py:class:`ZenAppSetupException`
-    * :py:class:`ZenAppProcessException`
-    * :py:class:`ZenAppEvaluateException`
-    * :py:class:`ZenAppTeardownException`
-
-* :py:class:`ZenAppPlugin`
-* :py:class:`BaseApp`
-* :py:class:`DemoBaseApp`
 """
 
 
@@ -368,10 +486,11 @@ class BaseApp:
     Base implementation of generic executable application. This class attempts to
     provide robust and stable framework, which can be used to writing all kinds
     of scripts or daemons. Although is is usable, this is however a low level framework
-    and should not be used directly, use the :py:mod:`pyzenkit.zenscript` or :py:mod:`pyzenkit.zendaemon`
-    modules for writing custom scripts or daemons respectively. That being said,
-    the :py:class:`pyzenkit.baseapp.DemoBaseApp` class is an example implementation
-    of using this class directly without any additional overhead.
+    and should not be used directly, use the :py:mod:`pyzenkit.zenscript` or
+    :py:mod:`pyzenkit.zendaemon` modules for writing custom scripts or daemons
+    respectively. That being said, the :py:class:`pyzenkit.baseapp.DemoBaseApp`
+    class is an example implementation of using this class directly without any
+    additional overhead.
     """
 
     #
@@ -471,12 +590,14 @@ class BaseApp:
 
     def __init__(self, **kwargs):
         """
-        Base application object constructor. Only defines core internal variables.
-        The actual object initialization, during which command line arguments and
-        configuration files are parsed, is done during the configure() stage of
-        the run() sequence.
+        Base application object constructor. Only defines core internal variables
+        and setup default values. The actual object initialization, during which
+        command line arguments and configuration files are parsed, is done during
+        the **setup** stage of the application life-cycle. Do not do anything expensive
+        in this stage, object instantination should be quick, cheap and always
+        succeed (when reasonable), use the **setup** stage for that stuff.
 
-        :param kwargs: Various additional parameters.
+        :param dict kwargs: Various additional parameters.
         """
         # Initialize list of desired plugins.
         self._plugins = kwargs.get(self.CONFIG_PLUGINS, [])
@@ -488,25 +609,25 @@ class BaseApp:
         self.argparser = self._init_argparser(**kwargs)
 
         # Parse CLI arguments immediatelly, we need to check for a few priority
-        # flags and switches.
+        # flags and switches, like ``--debug``
         self._config_cli  = self._parse_cli_arguments(self.argparser)
         self._config_file = None
         self._config_dir  = None
 
-        # [PUBLIC] Detect name of the application.
         self.name = self._init_name(**kwargs)
-        # [PUBLIC] Script paths, will be used to construct various absolute file paths.
+        """[PUBLIC] Name of the application, autodetected, or forced by object constructor arguments."""
         self.paths  = self._init_paths(**kwargs)
-        # [PUBLIC] Script processing runlog.
+        """[PUBLIC] Application paths that will be used to construct various absolute file paths."""
         self.runlog = self._init_runlog(**kwargs)
-        # [PUBLIC] Storage for application configurations.
+        """[PUBLIC] Application processing runlog."""
         self.config = self._init_config((), **kwargs)
-        # [PUBLIC] Internal logger object.
+        """[PUBLIC] Application configuration dictionary."""
         self.logger = None
-        # [PUBLIC] Persistent state object.
+        """[PUBLIC] Preconfigured :py:class:`logging.Logger` object."""
         self.pstate = None
-        # [PUBLIC] Final return code.
+        """[PUBLIC] Persistent state dictionary."""
         self.retc   = self.RC_SUCCESS
+        """[PUBLIC] Final return code as integer."""
 
         # Perform subinitializations on default configurations and argument parser.
         self._sub_stage_init(**kwargs)
@@ -517,9 +638,9 @@ class BaseApp:
         in subclasses, however it must return valid :py:class:`argparse.ArgumentParser`
         object.
 
-        Gets called from main constructor :py:func:`BaseApp.__init__`.
+        Gets called from main constructor :py:func:`~BaseApp.__init__`.
 
-        :param kwargs: Various additional parameters passed down from constructor.
+        :param dict kwargs: Various additional parameters passed down from constructor.
         :return: Initialized argument parser object.
         :rtype: argparse.ArgumentParser
         """
@@ -577,11 +698,11 @@ class BaseApp:
     def _parse_cli_arguments(self, argparser):
         """
         Load and initialize application configuration received as command line arguments.
-        Use the previously configured ;py:class:`argparse.ArgumentParser` object
+        Use the previously configured :py:class:`argparse.ArgumentParser` object
         for parsing CLI arguments. Immediatelly perform dirty check for ``--debug``
         flag to turn on debug output as soon as possible.
 
-        Gets called from main constructor :py:func:`BaseApp.__init__`.
+        Gets called from main constructor :py:func:`~BaseApp.__init__`.
 
         :param argparse.ArgumentParser argparser: Argument parser object to use.
         :return: Parsed command line arguments.
@@ -607,7 +728,7 @@ class BaseApp:
         either using command line option ``--name``, or by using parameter ``name``
         of application object constructor.
 
-        Gets called from main constructor :py:func:`BaseApp.__init__`.
+        Gets called from main constructor :py:func:`~BaseApp.__init__`.
 
         :param kwargs: Various additional parameters passed down from constructor.
         :return: Name of the application.
@@ -636,7 +757,7 @@ class BaseApp:
         directory etc. These values will when be used to autogenerate default paths
         to various files and directories, like log file, persistent state file etc.
 
-        Gets called from main constructor :py:func:`BaseApp.__init__`.
+        Gets called from main constructor :py:func:`~BaseApp.__init__`.
 
         :param kwargs: Various additional parameters passed down from constructor.
         :return: Configurations for various filesystem paths.
@@ -655,7 +776,7 @@ class BaseApp:
         Initialize application runlog. Runlog should contain vital information about
         application progress and it will be stored into file upon exit.
 
-        Gets called from main constructor :py:func:`BaseApp.__init__`.
+        Gets called from main constructor :py:func:`~BaseApp.__init__`.
 
         :param kwargs: Various additional parameters passed down from constructor.
         :return: Runlog structure.
@@ -684,9 +805,15 @@ class BaseApp:
         """
         Initialize default application configurations. This method may be used
         from subclasses by passing any additional configurations in ``cfgs``
-        parameter.
+        parameter. Configurations should be passed as list of two item tupples::
 
-        Gets called from main constructor :py:func:`BaseApp.__init__`.
+            (('key1', 'value'), ('key2', 42)
+
+        Note, that these are only defaults for given configuration key and may
+        get overwritten by merging values from configuration file, or command
+        line arguments.
+
+        Gets called from main constructor :py:func:`~BaseApp.__init__`.
 
         :param list cfgs: Additional set of configurations.
         :param kwargs: Various additional parameters passed down from constructor.
@@ -732,6 +859,8 @@ class BaseApp:
         """
         **SUBCLASS HOOK**: Perform additional custom initialization actions in **__init__** stage.
 
+        Gets called from :py:func:`~BaseApp.__init__`.
+
         :param kwargs: Various additional parameters passed down from constructor.
         """
         pass
@@ -740,13 +869,17 @@ class BaseApp:
         """
         **SUBCLASS HOOK**: Perform additional custom setup actions in **setup** stage.
 
-        Gets called from :py:func:`BaseApp._stage_setup` and it is a **SETUP SUBSTAGE 06**.
+        Gets called from :py:func:`~BaseApp._stage_setup` and it is a **SETUP SUBSTAGE 06**.
         """
         pass
 
     def _sub_stage_process(self):
         """
         **SUBCLASS HOOK**: Perform some actual processing in **process** stage.
+        This is a mandatory method, that must be implemented in subclass, the
+        default iplementation in this class raises ``NotImplementedError``.
+
+        Gets called from :py:func:`~BaseApp._stage_process`.
         """
         raise NotImplementedError("Method must be implemented in subclass")
 
@@ -754,7 +887,7 @@ class BaseApp:
         """
         **SUBCLASS HOOK**: Perform additional teardown actions in **teardown** stage.
 
-        Gets called from :py:func:`BaseApp._stage_teardown` and it is a **TEARDOWN SUBSTAGE 01**.
+        Gets called from :py:func:`~BaseApp._stage_teardown` and it is a **TEARDOWN SUBSTAGE 01**.
         """
         pass
 
@@ -799,7 +932,7 @@ class BaseApp:
         will cause the appropriate default values to be overwritten. This way an
         alternative configuration file or directory will be loaded in next step.
 
-        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
         """
         # IMPORTANT! Immediatelly rewrite the default value for configuration file
@@ -817,8 +950,11 @@ class BaseApp:
     def _configure_from_file(self):
         """
         Load and initialize application configurations from single configuration file.
+        Name of the configuration file is either autogenerated from application
+        name and path to configuration directory, or it might come from command
+        line option.
 
-        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
         """
         try:
@@ -831,9 +967,11 @@ class BaseApp:
     def _configure_from_dir(self):
         """
         Load and initialize application configurations from multiple files in
-        configuration directory.
+        configuration directory. Name of the configuration directory is either
+        autogenerated from application name and path to configuration directory,
+        or it might come from command line option.
 
-        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
         """
         try:
@@ -848,7 +986,7 @@ class BaseApp:
         Configure application and produce final configuration by merging all available
         configuration values in appropriate order ('default' <= 'dir' <= 'file' <= 'cli').
 
-        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
         """
         exceptions = (self.CONFIG_CFG_FILE, self.CONFIG_CFG_DIR)
@@ -870,8 +1008,16 @@ class BaseApp:
     def _configure_postprocess(self):
         """
         Perform configuration postprocessing and calculate core configurations.
+        Core configurations is an internal mechanism, that separates configurations
+        received from untrusted sources from those that are calculated internally. Also,
+        there is a set of configuations, that can be only determined programatically
+        and usually from multiple base configuration keys. For example there may be
+        a configuration representing some desired application state, however the
+        correct value may be determined only after evaluating values of multiple
+        configurations (e.g. switch for console output, that depends on value of
+        ``debug`` and ``verbosity`` configurations).
 
-        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
         """
         # Always mstart with a clean slate.
@@ -940,9 +1086,11 @@ class BaseApp:
 
     def _configure_plugins(self):
         """
-        Perform configurations of all application plugins.
+        Perform configurations of all application plugins. This method will simply
+        call the :py:func:`ZenAppPlugin.configure` of all plugins to let them
+        perform their own configuration tasks.
 
-        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
         """
         for plugin in self._plugins:
@@ -953,7 +1101,7 @@ class BaseApp:
         """
         Perform configuration validation and checking.
 
-        Gets called from :py:func:`BaseApp._stage_setup_configuration` and is
+        Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
 
         .. todo::
@@ -968,9 +1116,18 @@ class BaseApp:
 
     def _stage_setup_configuration(self):
         """
-        **SETUP SUBSTAGE 01:** Setup application configurations.
+        **SETUP SUBSTAGE 01:** Setup application configurations. This method will
+        perform following configuration tasks in following order:
 
-        Gets called from :py:func:`BaseApp._stage_setup`.
+        * :py:func:`~BaseApp._configure_from_cli`
+        * :py:func:`~BaseApp._configure_from_file` (optional)
+        * :py:func:`~BaseApp._configure_from_dir` (optional)
+        * :py:func:`~BaseApp._configure_merge`
+        * :py:func:`~BaseApp._configure_postprocess`
+        * :py:func:`~BaseApp._configure_plugins`
+        * :py:func:`~BaseApp._configure_check`
+
+        Gets called from :py:func:`~BaseApp._stage_setup`.
         """
         # Load configurations from command line.
         self._configure_from_cli()
@@ -999,7 +1156,10 @@ class BaseApp:
         """
         **SETUP SUBSTAGE 02:** Setup application privileges (user and group account).
 
-        Gets called from :py:func:`BaseApp._stage_setup`.
+        Target user and group account are retrieved from already processed internal
+        configuration dictionary.
+
+        Gets called from :py:func:`~BaseApp._stage_setup`.
         """
         gra = self.c(self.CONFIG_GROUP, None)
         if gra and gra[1] != os.getgid():
@@ -1015,9 +1175,11 @@ class BaseApp:
 
     def _stage_setup_logging(self):
         """
-        **SETUP SUBSTAGE 03:** Setup terminal and file logging facilities.
+        **SETUP SUBSTAGE 03:** Setup console and file logging facilities. All
+        logging configuration is retrieved from already processed internal
+        configuration dictionary.
 
-        Gets called from :py:func:`BaseApp._stage_setup`.
+        Gets called from :py:func:`~BaseApp._stage_setup`.
         """
         cc = self.cc(self.CORE_LOGGING, {})
         if cc[self.CORE_LOGGING_TOCONS] or cc[self.CORE_LOGGING_TOFILE]:
@@ -1057,8 +1219,12 @@ class BaseApp:
     def _stage_setup_pstate(self):
         """
         **SETUP SUBSTAGE 04:** Setup persistent state from external JSON file.
+        Persistent state is just a writable dictionary, that is deserialized on
+        application startup from a file and serialized back to the same file on
+        application teardown. It can be used to store or pass data between multiple
+        application runs.
 
-        Gets called from :py:func:`BaseApp._stage_setup`.
+        Gets called from :py:func:`~BaseApp._stage_setup`.
         """
         if os.path.isfile(self.c(self.CONFIG_PSTATE_FILE)):
             self.dbgout("Loading persistent state from file '{}'".format(self.c(self.CONFIG_PSTATE_FILE)))
@@ -1069,9 +1235,11 @@ class BaseApp:
 
     def _stage_setup_plugins(self):
         """
-        **SETUP SUBSTAGE 05:** Perform setup of all application plugins.
+        **SETUP SUBSTAGE 05:** Perform setup of all application plugins. This method
+        will simply call the :py:func:`ZenAppPlugin.setup` of all plugins to let them
+        perform their own setup tasks.
 
-        Gets called from :py:func:`BaseApp._stage_setup`.
+        Gets called from :py:func:`~BaseApp._stage_setup`.
         """
         for plugin in self._plugins:
             self.dbgout("Setting-up application plugin '{}'".format(plugin))
@@ -1081,9 +1249,10 @@ class BaseApp:
         """
         **SETUP SUBSTAGE 07:** Dump application setup information. This method will
         display all vital information about application setup like filesystem paths,
-        configurations etc.
+        configurations etc. The ``debug`` command line option or configuration key
+        must be set for any output.
 
-        Gets called from :py:func:`BaseApp._stage_setup`.
+        Gets called from :py:func:`~BaseApp._stage_setup`.
         """
         self.logger.debug("Application name is '%s'", self.name)
         self.logger.debug("System paths >>>\n%s", self.json_dump(self.paths))
@@ -1105,9 +1274,10 @@ class BaseApp:
     def _stage_teardown_pstate(self):
         """
         **TEARDOWN SUBSTAGE 02:** Save application persistent state into JSON file, dump
-        it to ``stdout`` or write it to logging service.
+        it to ``stdout`` or write it to logging service. The output destination is
+        determined based on application configuration.
 
-        Gets called from :py:func:`BaseApp._stage_teardown`.
+        Gets called from :py:func:`~BaseApp._stage_teardown`.
         """
         if self.cc(self.CORE_PSTATE, {}).get(self.CORE_PSTATE_SAVE):
             self._utils_pstate_save(self.pstate)
@@ -1119,9 +1289,10 @@ class BaseApp:
     def _stage_teardown_runlog(self):
         """
         **TEARDOWN SUBSTAGE 03:** Save application runlog into JSON file, dump it to
-        ``stdout`` or write it to logging service.
+        ``stdout`` or write it to logging service. The output destination is
+        determined based on application configuration.
 
-        Gets called from :py:func:`BaseApp._stage_teardown`.
+        Gets called from :py:func:`~BaseApp._stage_teardown`.
         """
         if self.cc(self.CORE_RUNLOG, {}).get(self.CORE_RUNLOG_SAVE):
             self._utils_runlog_save(self.runlog)
@@ -1189,6 +1360,7 @@ class BaseApp:
 
         Name of the callback method is calculated from the name of the action by
         prepending string ``cbk_action_`` and replacing all ``-`` with ``_``.
+        Adding more actions is therefore really simple.
         """
         self.time_mark('stage_action_start', 'Start of the action stage')
 
@@ -1220,7 +1392,7 @@ class BaseApp:
         """
         **STAGE:** *PROCESS*.
 
-        Finally perform some real work. This method will call :py:func:`_sub_stage_process`
+        Finally perform some real work. This method will call :py:func:`~BaseApp._sub_stage_process`
         hook, which must be implemented in subclass.
         """
         self.time_mark('stage_process_start', 'Start of the processing stage')
@@ -1244,6 +1416,10 @@ class BaseApp:
         **STAGE:** *EVALUATE*.
 
         Perform application runlog postprocessing evaluation.
+
+        ..todo::
+
+            Work in progress, not implemented yet.
         """
         self.time_mark('stage_evaluate_start', 'Start of the evaluation stage')
 
@@ -1262,8 +1438,12 @@ class BaseApp:
         """
         **STAGE:** *TEARDOWN*
 
-        Main teardown routine. This method will call the sequence of all configured
-        teardown routines.
+        Main teardown routine. This method will call the sequence of following
+        teardown routines:
+
+        * :py:func:`~BaseApp._sub_stage_teardown`
+        * :py:func:`~BaseApp._sub_teardown_pstate`
+        * :py:func:`~BaseApp._sub_teardown_runlog`
         """
         try:
             # Perform custom teardown actions.
@@ -1293,7 +1473,7 @@ class BaseApp:
         """
         **APPLICATION MODE:** *Standalone application mode* - Main processing method.
 
-        Run as standalone application, performs all stages of object life cycle:
+        Run as standalone application, performs all stages of object life-cycle:
             1. setup stage
             2.1 action stage
             2.2.1 processing stage

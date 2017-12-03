@@ -1,11 +1,7 @@
-.. _section-pyzenkit-architecture:
-
-Application architecture
-================================================================================
-
+.. _section-pyzenkit-configuration:
 
 Configuration
---------------------------------------------------------------------------------
+================================================================================
 
 Every application supports multiple means for adjusting the internal configurations.
 When appropriate the default values for each configuration is hardcoded in module
@@ -22,14 +18,14 @@ written in configuration file.
 
 
 Command line options
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------------------------------------------
 
 Configuration can be passed down to application by command line options. These options
 have the highest priority and will overwrite any other configuration values. Depending
 on the base object of the application different set of options is available.
 
 Common application options
-````````````````````````````````````````````````````````````````````````````````
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Following configuration options are available for all applications based on
 :py:mod:`pyzenkit.baseapp`:
@@ -37,7 +33,7 @@ Following configuration options are available for all applications based on
 .. include:: _inc_bin.cfg-app.rst
 
 Common script options
-````````````````````````````````````````````````````````````````````````````````
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Following configuration options are available on top of common applicationsoptions
 for all applications based on :py:mod:`pyzenkit.zenscript`:
@@ -45,7 +41,7 @@ for all applications based on :py:mod:`pyzenkit.zenscript`:
 .. include:: _inc_bin.cfg-script.rst
 
 Common daemon options
-````````````````````````````````````````````````````````````````````````````````
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Following configuration options are available on top of common applicationsoptions
 for all applications based on :py:mod:`pyzenkit.zendaemon`:
@@ -54,7 +50,7 @@ for all applications based on :py:mod:`pyzenkit.zendaemon`:
 
 
 Configuration files and directories
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------------------------------------------
 
 Configuration can be passed down to application using a combination of configuration
 file or configuration directory. The configuration file

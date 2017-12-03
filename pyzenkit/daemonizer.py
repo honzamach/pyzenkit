@@ -17,21 +17,30 @@ This module contains simple daemonization library, that takes care of all tasks
 necessary to correctly daemonize a process. Correct daemonization consists of
 following steps:
 
-* Setup directories and limits
-* Setup user and group permissions
-* Double fork and split session
-* Setup signal handlers
-* Close all open file descriptors (except for possible log files)
-* Redirect ``stdin``, ``stdout``, ``stderr`` to ``/dev/null``
-* Detect current PID and store it to appropriate PID file
-* At exit remove PID file
+# Setup directories and limits
+# Setup user and group permissions
+# Terminal detachment with double fork and split session
+# Setup signal handlers
+# Close all open file descriptors (except for possible log files)
+# Redirect ``stdin``, ``stdout``, ``stderr`` to ``/dev/null``
+# Detect current PID and store it to appropriate PID file
+# Remove PID file at process exit
 
-These steps are performed during *full* daemonization. For many purposes it is however
-usefull to be capable of some kind of *lite* daemonization, in which case almost
-every step in previous list is done except for double forking, closing all files
-and redirecting ``std*`` to ``/dev/null``. This can be usefull during testing or debugging,
-or even during production deployments for some kind of *stay in foreground* feature, which
-still enables the users to control the application from outside with signals.
+These steps are performed during **full** daemonization. For many purposes it is however
+usefull to be capable of some kind of **lite** daemonization, in which case almost
+every step in previous list is done except for terminal detachment, closing all files
+and redirecting ``std*`` to ``/dev/null``. This can be particularly usefull during
+testing or debugging, or even during production deployments for some kind of
+*stay in foreground* feature, which still enables the users to control the running
+application from outside with signals.
+
+
+Usage example
+--------------------------------------------------------------------------------
+
+Example usage is implemented directly within this module, please refer to source
+code. To view the result of demonstration please execute the module directly with
+Python3 interpretter.
 """
 
 
@@ -183,7 +192,7 @@ def daemonize_lite(
     :param int uid: User ID to which to drop the permissions (may be ``None``).
     :param int gid: Group ID to which to drop the permissions (may be ``None``).
     :param str pid_file: Full path to the PID file (may be ``None``).
-    :param dict signals: Desired signal to be handled as keys and appropriate handlers as values (may be ``None``).
+    :param dict signals: Desired signals to be handled as keys and their appropriate handlers as values (may be ``None``).
     """
 
     # Setup directories, limits, users, etc.
@@ -219,7 +228,7 @@ def daemonize(
     :param int gid: Group ID to which to drop the permissions (may be ``None``).
     :param str pid_file: Full path to the PID file (may be ``None``).
     :param list files_preserve: List of file handles to preserve from closing (may be ``None``).
-    :param dict signals: Desired signal to be handled as keys and appropriate handlers as values (may be ``None``).
+    :param dict signals: Desired signals to be handled as keys and their appropriate handlers as values (may be ``None``).
     """
 
     # Setup directories, limits, users, etc.

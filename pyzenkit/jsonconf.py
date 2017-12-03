@@ -20,6 +20,13 @@ This module provides tools for manipulating JSON configuration files:
 * Merging multiple JSON configuration files or configuration directories
 * Support for single line comments in JSON files (``#``, ``//``)
 * Support for semi-automated JSON schema validation
+
+Usage example
+--------------------------------------------------------------------------------
+
+Example usage is implemented directly within this module, please refer to source
+code. To view the result of demonstration please execute the module directly with
+Python3 interpretter.
 """
 
 

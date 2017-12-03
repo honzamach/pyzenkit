@@ -13,55 +13,123 @@
 
 
 """
-This module provides base implementation of generic script with built-in support
-for regular executions. It builds on top of :py:mod:`pyzenkit.baseapp` module and
-adds couple of other usefull features:
+This module provides base implementation of generic script represented by the
+:py:class:`pyzenkit.zenscript.ZenScript` class with built-in support for regular
+executions. It builds on top of :py:mod:`pyzenkit.baseapp` module and adds couple
+of other usefull features:
 
 * Support for executing multiple different **commands**.
-* Support for regular executions.
+* Support for multiple execution modes (**default**, **regular**, **shell**).
+* Support for executions in regular time intervals.
 
 
 Script commands
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Every script provides support for more, possibly similar, commands to be implemented
-within one script.
+within one script. The use case for this may be a fictional example backup script,
+that can provide separate commands for *backup* and *restore* features, but pack
+both of them nicelly into one package/module/executable.
+
+Commands are implemented very easily by adding new method according to following
+convention:
+
+* Command callback must be method without any mandatory arguments.
+* Command callback method name must begin with ``cbk_command_`` prefix.
+* Command name in the method name after the prefix must also be `snake_cased``.
+* Command name will be calculated by replacing ``_`` with ``-``.
+
+Following are examples of valid command callbacks::
+
+    cbk_command_test(self)         # Will be mapped to 'test' command.
+    cbk_command_another_test(self) # Will be mapped to 'another-test' command.
+
+When a method is implemented according to these guidelines, it will be automatically
+recognized and executable.
+
+Commands may be executed by selecting the desired command by command line argument::
+
+    path/to/zenscript.py --command default
+    path/to/zenscript.py --command=alternative
+
+Command may also be selected permanently inside configuration file under the dictionary
+key ``command``.
 
 
 Script execution modes
-^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Script execution supports following modes:
 
-* **regular**
-* **shell**
-* **default**
+**regular**
+    In a **regular** mode the script is intended to be executed in regular time
+    intervals from a *cron-like* service (usually). The internal application
+    configuration is forced into following state:
 
-In a **regular** mode the script is intended to be executed in regular time intervals
-from a *cron-like* service. The internal application configuration is forced into
-following state:
+    * Console output is explicitly suppressed
+    * Console logging level is explicitly forced to **warning** level
+    * Logging to log file is explicitly forced to be **enabled**
+    * Runlog saving is explicitly forced to be **enabled**
+    * Persistent state saving is explicitly forced to be **enabled**
 
-* Console output is explicitly suppressed
-* Console logging level is explicitly forced to 'warning' level
-* Logging to log file is explicitly forced to be enabled
-* Runlog saving is explicitly forced to be enabled
-* Persistent state saving is explicitly forced to be enabled
+**shell**
+    In a **shell** mode the script is intended to be executed by hand from interactive
+    shell. It is intended to be used for debugging or experimental purposes, or for
+    applications that are executed by hand by a user. The internal application
+    configuration is forced into following state:
 
-In a **shell** mode the script is intended to be executed by hand from interactive
-shell. It is intended to be used for debugging or experimental purposes and the
-internal application configuration is forced into following state:
+    * Logging to log file is explicitly **disabled**
+    * Runlog saving is explicitly **disables**
+    * Persistent state saving is explicitly **disabled**
 
-* Logging to log file is explicitly suppressed
-* Runlog saving is explicitly suppressed
-* Persistent state saving is explicitly suppressed
+**default**
+    In a **default** mode the script directs its output both to the files and
+    ``stdout`` and runlog and persistent state saving are **enabled**.
+
+
+Regular executions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Following is a list of predefined regular execution time intervals:
+
+* 5_minutes
+* 10_minutes
+* 15_minutes
+* 20_minutes
+* 30_minutes
+* hourly
+* 2_hourly
+* 3_hourly
+* 4_hourly
+* 6_hourly
+* 12_hourly
+* daily
+* weekly
+* 2_weekly
+* 4_weekly
+
+The :py:func:`ZenScript.calculate_interval_thresholds` method can be used to calculate
+time interval thresholds (lower and upper boundary) for given time interval and
+time. These values can be then used for a number of use cases like fetching data
+from database etc.
 
 
 Module contents
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * :py:class:`ZenScriptException`
 * :py:class:`ZenScript`
 * :py:class:`DemoZenScript`
+
+
+Programming API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* public methods:
+
+    * calculate time interval thresholds: :py:func:`ZenScript.calculate_interval_thresholds`
+    * execute script command by name: :py:func:`ZenScript.execute_script_command`
+    * get a name of a default command: :py:func:`ZenScript.get_default_command`
 """
 
 

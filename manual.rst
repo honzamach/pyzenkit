@@ -31,7 +31,8 @@ Welcome to PyZenKit's documentation!
    :caption: Contents:
 
    README
-   doc/_doclib/architecture
+   doc/_doclib/overview
+   doc/_doclib/configuration
    doc/_doclib/api
 
 Indices and tables

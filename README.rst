@@ -10,12 +10,12 @@ PyZenKit - README
 Introduction
 --------------------------------------------------------------------------------
 
-This package contains collection of usefull tools and utilities for creating
-console applications, scripts and system services (daemons) in Python 3. It
-provides easily extendable and customizable base implementations of generic
-application, script or daemon and which take care of many common issues and
-tasks like configuration loading and merging, command line argument parsing,
-logging setup, etc.
+This package contains collection of usefull tools and utilities and framework
+for creating console applications, scripts and system services (daemons) in
+Python 3. It provides easily extendable and customizable base implementations
+of generic application, script or daemon and which take care of many common
+issues and tasks like configuration loading and merging, command line argument
+parsing, logging setup, etc.
 
 The extensive documentation and tutorials is still under development, however
 usage examples and demonstration applications are provided right in the source
@@ -25,10 +25,10 @@ to see the demonstration::
     python3 path/to/application.py --help
 
 
-Features
+Framework features
 --------------------------------------------------------------------------------
 
-Currently the package contains following features:
+Currently the framework package contains following features:
 
 :py:mod:`pyzenkit.jsonconf`
     Module for handling JSON based configuration files and directories.
@@ -54,5 +54,6 @@ Copyright
 | Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
 | Use of this package is governed by the MIT license, see LICENSE file.
 |
-| This project was initially written for personal use of the original author. Later
-| it was developed much further and used for project of author`s employer.
+| This project was initially written for personal use of the original author.
+| Later it was developed much further and used for project of author`s employer.
+|

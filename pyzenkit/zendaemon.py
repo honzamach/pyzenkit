@@ -13,26 +13,153 @@
 
 
 """
-This module provides base implementation of generic daemon. It builds on top of
-:py:mod:`pyzenkit.baseapp` and adds following usefull features:
+This module provides base implementation of daemon service represented by the
+:py:class:`pyzenkit.zendaemon.ZenDaemon` class. It builds on top of :py:mod:`pyzenkit.baseapp`
+module and adds couple of other usefull features:
 
-* Event driven design.
-* Support for arbitrary signal handling.
-* Support for modularity with daemon components.
 * Fully automated daemonization process.
+* Event driven design.
+* Support for handling arbitrary signals.
+* Support for modularity with daemon components.
 
-Events and event queue
-^^^^^^^^^^^^^^^^^^^^^^
-
-Signal handling
-^^^^^^^^^^^^^^^
-
-Daemon components
-^^^^^^^^^^^^^^^^^
 
 Daemonization
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Daemonization is a process of transforming foreground application into a background
+always running service. The :py:class:`pyzenkit.zendaemon.ZenDaemon` class has
+this feature built in and configurable with command line options, or configuration
+files/directories.
+
+Daemonization is implemented on top of the :py:mod:`pyzenkit.daemonizer` utility
+library, please refer to its documentation for more details.
+
+
+Event driven design and event queue
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The daemon application has the event driven design. The :py:func:`ZenDaemon._sub_stage_process`
+method is implemented to perform an infinite event loop. There are events being emited
+from different parts of the application, which are then being ordered into event queue.
+Each of these events is then handled with appropriate callback method.
+
+Event callback methods must be registered into daemon application to be recognized.
+Multiple event callbacks my be registered for certain single event. In this case
+those callbacks will be called in order of registration and a result of the previous
+one will be passed as input of the next. In other words callbacks form a pipeline
+and event will be pushed through that. Each callback method has the opportunity to
+break the pipeline/chain by returning apropriate flag.
+
+The naming convention for event callback method is the following:
+
+* Event callback must be method, which accepts reference to :py:class:`ZenDaemon` ``daemon``
+  as first argument and :py:class:`dict` ``args`` as second argument.
+* Event callback method name must begin with ``cbk_event_`` prefix.
+* Event name in method name after the prefix must also be `snake_cased``.
+
+Note, that event name in callback method name is not used in any way for mapping
+callbacks to events (like in the case of **actions**), the callbacks are explicitly
+registered to handle particular events. It is however a great best practice and
+it is very clear then which callback handles which event.
+
+Following are examples of valid event callbacks::
+
+    cbk_event_test(self, daemon, args)
+    cbk_event_another_test(self, daemon, args)
+
+Each daemon application has an instance of the :py:class:`EventQueueManager` as
+public attribute, which represents the event queue. There are following methods
+available for scheduling events into the queue:
+
+* End of the queue: :py:func:`EventQueueManager.schedule`
+* Beginning of the queue: :py:func:`EventQueueManager.schedule_next`
+* After certain time interval: :py:func:`EventQueueManager.schedule_after`
+* At specific time: :py:func:`EventQueueManager.schedule_at`
+
+
+Signal handling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each daemon service should be capable of receiving and handling external signals.
+Currently support for following signals is built-in:
+
+SIGINT
+    Stop the infinite event loop and exit the application.
+
+SIGHUP
+    Reload configuration and reconfigure the application.
+
+SIGUSR1
+    Save current application runlog to JSON file.
+
+SIGUSR2
+    Save current application state to JSON file. Application state is a complete
+    dump of the whole application.
+
+Signals are catched by the daemon engine, transformed into high priority events and
+these are then handled ASAP with following built-in event callbacks:
+
+* :py:func:`ZenDaemon.cbk_event_signal_hup`
+* :py:func:`ZenDaemon.cbk_event_signal_usr1`
+* :py:func:`ZenDaemon.cbk_event_signal_usr2`
+
+There are following built-in application actions, that can be used to send particular
+signal to apropriate running daemon:
+
+* :py:func:`ZenDaemon.cbk_action_signal_alrm`
+* :py:func:`ZenDaemon.cbk_action_signal_check`
+* :py:func:`ZenDaemon.cbk_action_signal_hup`
+* :py:func:`ZenDaemon.cbk_action_signal_int`
+* :py:func:`ZenDaemon.cbk_action_signal_usr1`
+* :py:func:`ZenDaemon.cbk_action_signal_usr2`
+
+These actions may be executed in a following way::
+
+    path/to/zendaemon.py --action signal-usr1
+    path/to/zendaemon.py --action=signal-usr2
+
+
+Daemon components
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The daemon components are actual workers in this paricular daemon design. The :py:class:`ZenDaemon`
+class is in fact only a container for these components, that holds them all
+together and provides a working environment. The actual real work is being done inside
+these smaller components. They need to be registered inside the daemon to receive
+the events and the daemon is then going through the event queue and executing correct
+event callbacks inside these components.
+
+Daemon components are also a great way for code reusability, because one can have
+a library of usefull generic components and multiple daemons can be then implemented
+very quickly by simply reusing them. For example one might implement component for
+trailing text files and many different daemons might reuse that code and add some
+additional functionality on top of that.
+
+
+Module contents
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* :py:class:`QueueEmptyException`
+* :py:class:`ZenDaemonComponentException`
+* :py:class:`ZenDaemonException`
+* :py:class:`EventQueueManager`
+* :py:class:`ZenDaemonComponent`
+* :py:class:`ZenDaemon`
+* :py:class:`DemoZenDaemonComponent`
+* :py:class:`DemoZenDaemon`
+
+
+Programming API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* public attributes:
+
+    * :py:attr:`ZenDaemon.queue` - Event queue.
+
+* public methods:
+
+    * :py:func:`ZenDaemon.done` - Stop the infinite event loop and exit the application.
+    * :py:func:`ZenDaemon.wait` - Pause the processing for given amount of time.
 """
 
 
@@ -945,9 +1072,10 @@ class DemoDaemonComponent(ZenDaemonComponent):
         Callback handler for default event.
         """
         daemon.queue.schedule('default')
-        daemon.logger.info("Working")
+        daemon.logger.info("Working...")
         self.inc_statistic('cnt_default')
         time.sleep(1)
+        daemon.logger.info("Work unit done")
         return (daemon.FLAG_CONTINUE, None)
 
 class DemoZenDaemon(ZenDaemon):
