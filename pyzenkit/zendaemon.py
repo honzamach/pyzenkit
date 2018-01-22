@@ -29,7 +29,7 @@ Daemonization
 Daemonization is a process of transforming foreground application into a background
 always running service. The :py:class:`pyzenkit.zendaemon.ZenDaemon` class has
 this feature built in and configurable with command line options, or configuration
-files/directories.
+files/directories. Please see documentation page :ref:`section-pyzenkit-configuration`.
 
 Daemonization is implemented on top of the :py:mod:`pyzenkit.daemonizer` utility
 library, please refer to its documentation for more details.
@@ -837,7 +837,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             'runlog':         self.runlog,
         }
         for component in self.components:
-            state['components'][component.__class__.__name__] = component.get_state(self)
+            state['components'][component.__class__.__name__] = component.get_state()
         return state
 
     def _get_statistics(self):
@@ -849,7 +849,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             'components':     {},
         }
         for component in self.components:
-            statistics['components'][component.__class__.__name__] = component.get_statistics(self)
+            statistics['components'][component.__class__.__name__] = component.get_statistics()
         return statistics
 
     def _utils_state_dump(self, state):
