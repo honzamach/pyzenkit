@@ -191,7 +191,7 @@ def t_datetime(val):
 
     # Try numeric type
     try:
-        return datetime.datetime.fromtimestamp(float(val))
+        return datetime.datetime.utcfromtimestamp(float(val))
     except (TypeError, ValueError):
         pass
     # Try RFC3339 string
