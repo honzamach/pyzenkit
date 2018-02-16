@@ -64,8 +64,8 @@ class TestPyzenkitZenScript(unittest.TestCase):
         self.obj.plugin()
 
         # Test the interval threshold calculations
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = 1454934631, interval = 'daily'), (datetime.datetime(2016, 2, 7, 13, 30, 31), datetime.datetime(2016, 2, 8, 13, 30, 31)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = 1454934631, interval = 'daily', adjust = True), (datetime.datetime(2016, 2, 7, 1, 0), datetime.datetime(2016, 2, 8, 1, 0)))
+        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = 1454934631, interval = 'daily'), (datetime.datetime(2016, 2, 7, 12, 30, 31), datetime.datetime(2016, 2, 8, 12, 30, 31)))
+        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = 1454934631, interval = 'daily', adjust = True), (datetime.datetime(2016, 2, 7, 0, 0), datetime.datetime(2016, 2, 8, 0, 0)))
 
     def test_02_plugin(self):
         """
