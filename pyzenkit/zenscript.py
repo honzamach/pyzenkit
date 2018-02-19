@@ -437,7 +437,7 @@ class ZenScript(pyzenkit.baseapp.BaseApp):
         self.logger.debug("Calculated time interval thresholds: '%s' -> '%s' (%s, %i -> %i)", str(time_low), str(time_high), interval, time_low.timestamp(), time_high.timestamp())
 
         if adjust:
-            ts_h = t_datetime(time_high.timestamp() - (time_high.timestamp() % interval_delta))
+            ts_h = datetime.datetime.fromtimestamp(time_high.timestamp() - (time_high.timestamp() % interval_delta))
             ts_l = ts_h - datetime.timedelta(seconds=interval_delta)
             time_high = ts_h
             time_low  = ts_l
