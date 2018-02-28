@@ -138,7 +138,6 @@ __author__  = "Jan Mach <honza.mach.ml@gmail.com>"
 
 import os
 import re
-import time
 import datetime
 
 #
@@ -185,16 +184,17 @@ def t_datetime(val):
     :rtype: datetime.datetime
     :raises ValueError: if the value could not be converted to datetime.datetime object
     """
-    # Maybe there is nothing to do
+    # There is nothing to do in case val is already datetime object.
     if isinstance(val, datetime.datetime):
         return val
 
-    # Try numeric type
+    # First try a numeric type - UTC unix timestamp.
     try:
         return datetime.datetime.utcfromtimestamp(float(val))
     except (TypeError, ValueError):
         pass
-    # Try RFC3339 string
+
+    # Finally try RFC3339 string.
     res = RE_TIMESTAMP.match(val)
     if res is not None:
         year, month, day, hour, minute, second = (int(n or 0) for n in res.group(*range(1, 7)))
@@ -277,7 +277,7 @@ class ZenScript(pyzenkit.baseapp.BaseApp):
         arggroup_script.add_argument('--command',           help = 'name of the script command to be executed', choices = self._utils_detect_commands(), type = str, default = None)
         arggroup_script.add_argument('--interval',          help = 'time interval for regular executions', choices = RUN_INTERVALS.keys(), type = str, default = None)
         arggroup_script.add_argument('--adjust-thresholds', help = 'round-up time interval threshols to interval size (flag)', action = 'store_true', default = None)
-        arggroup_script.add_argument('--time-high',         help = 'upper time interval threshold', type = float, default = None)
+        arggroup_script.add_argument('--time-high',         help = 'upper time interval threshold', type = t_datetime, default = None)
 
         return argparser
 
@@ -300,7 +300,7 @@ class ZenScript(pyzenkit.baseapp.BaseApp):
             (self.CONFIG_INTERVAL,          None),
             (self.CONFIG_COMMAND,           self.get_default_command()),
             (self.CONFIG_ADJUST_THRESHOLDS, False),
-            (self.CONFIG_TIME_HIGH,         time.time()),
+            (self.CONFIG_TIME_HIGH,         datetime.datetime.utcnow()),
         ) + cfgs
         return super()._init_config(cfgs, **kwargs)
 
@@ -419,7 +419,7 @@ class ZenScript(pyzenkit.baseapp.BaseApp):
         Calculate time interval thresholds based on given upper time interval boundary and
         time interval size.
 
-        :param int time_high: Unix timestamp for upper time threshold.
+        :param time_high: Upper time threshold as float (unix timestamp), string (RFC3339), or datetime.datetime object.
         :param str interval: Time interval, one of the interval defined in :py:mod:`pyzenkit.zenscript`.
         :param bool adjust: Adjust time thresholds to round values (floor).
         :return: Lower and upper time interval boundaries.
@@ -430,20 +430,48 @@ class ZenScript(pyzenkit.baseapp.BaseApp):
         interval_delta = RUN_INTERVALS[interval]
 
         if not time_high:
-            time_high = time.time()
+            time_high = datetime.datetime.utcnow()
 
         time_high = t_datetime(time_high)
-        time_low  = time_high - datetime.timedelta(seconds=interval_delta)
-        self.logger.debug("Calculated time interval thresholds: '%s' -> '%s' (%s, %i -> %i)", str(time_low), str(time_high), interval, time_low.timestamp(), time_high.timestamp())
+        time_low  = time_high - datetime.timedelta(seconds = interval_delta)
+        self.logger.debug("Calculated time interval thresholds: '%s' -> '%s' (%s, %i -> %i)", time_low.isoformat(), time_high.isoformat(), interval, time_low.timestamp(), time_high.timestamp())
 
         if adjust:
             ts_h = datetime.datetime.fromtimestamp(time_high.timestamp() - (time_high.timestamp() % interval_delta))
-            ts_l = ts_h - datetime.timedelta(seconds=interval_delta)
+            ts_l = ts_h - datetime.timedelta(seconds = interval_delta)
             time_high = ts_h
             time_low  = ts_l
-            self.logger.debug("Adjusted time interval thresholds: '%s' -> '%s' (%s, %i -> %i)", str(time_low), str(time_high), interval, time_low.timestamp(), time_high.timestamp())
+            self.logger.debug("Adjusted time interval thresholds: '%s' -> '%s' (%s, %i -> %i)", time_low.isoformat(), time_high.isoformat(), interval, time_low.timestamp(), time_high.timestamp())
 
         return (time_low, time_high)
+
+    def calculate_upper_threshold(self, time_high = None, interval = 'daily', adjust = False):
+        """
+        Calculate upper time threshold based on given upper time interval boundary and
+        time interval size.
+
+        :param time_high: Upper time threshold as float (unix timestamp), string (RFC3339), or datetime.datetime object.
+        :param str interval: Time interval, one of the interval defined in :py:mod:`pyzenkit.zenscript`.
+        :param bool adjust: Adjust time thresholds to round values (floor).
+        :return: Lower and upper time interval boundaries.
+        :rtype: tuple of datetime.datetime
+        """
+        if interval not in RUN_INTERVALS:
+            raise ValueError("Invalid time interval '{}', valid values are: '{}'".format(interval, ','.join(RUN_INTERVALS.keys())))
+        interval_delta = RUN_INTERVALS[interval]
+
+        if not time_high:
+            time_high = datetime.datetime.utcnow()
+
+        time_high = t_datetime(time_high)
+        self.logger.debug("Calculated upper time threshold: '%s' (%s, %i)", time_high.isoformat(), interval, time_high.timestamp())
+
+        if adjust:
+            ts_h = datetime.datetime.fromtimestamp(time_high.timestamp() - (time_high.timestamp() % interval_delta))
+            time_high = ts_h
+            self.logger.debug("Adjusted upper time threshold: '%s' (%s, %i)", time_high.isoformat(), interval, time_high.timestamp())
+
+        return time_high
 
 
 class DemoZenScript(ZenScript):
@@ -503,6 +531,7 @@ class DemoZenScript(ZenScript):
         self.logger.info("* python3 pyzenkit/zenscript.py --runlog-dump")
         self.logger.info("* python3 pyzenkit/zenscript.py --command alternative")
         self.logger.info("Number of runs from persistent state: '%d'", self.pstate.get('counter'))
+        self.logger.info("Current upper time boundary:          '%s'", self.c(self.CONFIG_TIME_HIGH).isoformat())
 
         # Test direct console output with conjunction with verbosity levels.
         self.p("Hello world")

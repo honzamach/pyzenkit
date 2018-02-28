@@ -12,19 +12,20 @@
 #-------------------------------------------------------------------------------
 
 
+"""
+Unit test module for testing the :py:mod:`pyzenkit.zenscript` module.
+"""
+
+
+__author__  = "Jan Mach <honza.mach.ml@gmail.com>"
+
+
 import unittest
 from unittest.mock import Mock, MagicMock, call
-from pprint import pformat, pprint
 
 import os
-import sys
 import shutil
 import datetime
-
-
-# Generate the path to custom 'lib' directory
-lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-sys.path.insert(0, lib)
 
 import pyzenkit.baseapp
 import pyzenkit.zenscript
@@ -39,6 +40,9 @@ CFG_DIR_NAME  = '/tmp/{}'.format(SCR_NAME)       # Name of the script configurat
 
 
 class TestPyzenkitZenScript(unittest.TestCase):
+    """
+    Unit test class for testing the :py:mod:`pyzenkit.zenscript.ZenScript` class.
+    """
 
     def setUp(self):
         pyzenkit.baseapp.BaseApp.json_save(CFG_FILE_NAME, {'test': 'x'})
@@ -55,38 +59,157 @@ class TestPyzenkitZenScript(unittest.TestCase):
         os.remove(CFG_FILE_NAME)
         shutil.rmtree(CFG_DIR_NAME)
 
-    def test_01_utils(self):
-        """
-        Perform the basic utility tests.
-        """
-        self.maxDiff = None
-
-        self.obj.plugin()
-
-        # Test the interval threshold calculations
-        ts_utc = 1454934691
-        self.assertEqual(datetime.datetime.utcfromtimestamp(ts_utc).isoformat(), "2016-02-08T12:31:31")
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = 'daily'), (datetime.datetime(2016, 2, 7, 12, 31, 31), datetime.datetime(2016, 2, 8, 12, 31, 31)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = 'daily', adjust = True), (datetime.datetime(2016, 2, 7, 1, 0), datetime.datetime(2016, 2, 8, 1, 0)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '12_hourly', adjust = True), (datetime.datetime(2016, 2, 7, 13, 0), datetime.datetime(2016, 2, 8, 1, 0)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '6_hourly', adjust = True), (datetime.datetime(2016, 2, 8, 1, 0), datetime.datetime(2016, 2, 8, 7, 0)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '4_hourly', adjust = True), (datetime.datetime(2016, 2, 8, 5, 0), datetime.datetime(2016, 2, 8, 9, 0)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '3_hourly', adjust = True), (datetime.datetime(2016, 2, 8, 7, 0), datetime.datetime(2016, 2, 8, 10, 0)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '2_hourly', adjust = True), (datetime.datetime(2016, 2, 8, 9, 0), datetime.datetime(2016, 2, 8, 11, 0)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = 'hourly', adjust = True), (datetime.datetime(2016, 2, 8, 11, 0), datetime.datetime(2016, 2, 8, 12, 0)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '30_minutes', adjust = True), (datetime.datetime(2016, 2, 8, 12, 0), datetime.datetime(2016, 2, 8, 12, 30)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '20_minutes', adjust = True), (datetime.datetime(2016, 2, 8, 12, 0), datetime.datetime(2016, 2, 8, 12, 20)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '15_minutes', adjust = True), (datetime.datetime(2016, 2, 8, 12, 15), datetime.datetime(2016, 2, 8, 12, 30)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '10_minutes', adjust = True), (datetime.datetime(2016, 2, 8, 12, 20), datetime.datetime(2016, 2, 8, 12, 30)))
-        self.assertEqual(self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '5_minutes', adjust = True), (datetime.datetime(2016, 2, 8, 12, 25), datetime.datetime(2016, 2, 8, 12, 30)))
-
-    def test_02_plugin(self):
+    def test_01_plugin(self):
         """
         Perform the basic operativity tests.
         """
         self.maxDiff = None
 
         self.obj.plugin()
+
+    def test_02_calculate_interval_thresholds(self):
+        """
+        Perform tests of interval thresholds calculations.
+        """
+        self.maxDiff = None
+
+        self.obj.plugin()
+
+        # Test the interval threshold calculations
+        timestamps_utc = [
+            1454934691,
+            '2016-02-08T12:31:31Z',
+            datetime.datetime.utcfromtimestamp(1454934691),
+        ]
+        self.assertEqual(timestamps_utc[2].isoformat(), '2016-02-08T12:31:31')
+
+        for ts_utc in timestamps_utc:
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = 'daily'),
+                (datetime.datetime(2016, 2, 7, 12, 31, 31), datetime.datetime(2016, 2, 8, 12, 31, 31))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = 'daily', adjust = True),
+                (datetime.datetime(2016, 2, 7, 1, 0), datetime.datetime(2016, 2, 8, 1, 0))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '12_hourly', adjust = True),
+                (datetime.datetime(2016, 2, 7, 13, 0), datetime.datetime(2016, 2, 8, 1, 0))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '6_hourly', adjust = True),
+                (datetime.datetime(2016, 2, 8, 1, 0), datetime.datetime(2016, 2, 8, 7, 0))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '4_hourly', adjust = True),
+                (datetime.datetime(2016, 2, 8, 5, 0), datetime.datetime(2016, 2, 8, 9, 0))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '3_hourly', adjust = True),
+                (datetime.datetime(2016, 2, 8, 7, 0), datetime.datetime(2016, 2, 8, 10, 0))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '2_hourly', adjust = True),
+                (datetime.datetime(2016, 2, 8, 9, 0), datetime.datetime(2016, 2, 8, 11, 0))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = 'hourly', adjust = True),
+                (datetime.datetime(2016, 2, 8, 11, 0), datetime.datetime(2016, 2, 8, 12, 0))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '30_minutes', adjust = True),
+                (datetime.datetime(2016, 2, 8, 12, 0), datetime.datetime(2016, 2, 8, 12, 30))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '20_minutes', adjust = True),
+                (datetime.datetime(2016, 2, 8, 12, 0), datetime.datetime(2016, 2, 8, 12, 20))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '15_minutes', adjust = True),
+                (datetime.datetime(2016, 2, 8, 12, 15), datetime.datetime(2016, 2, 8, 12, 30))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '10_minutes', adjust = True),
+                (datetime.datetime(2016, 2, 8, 12, 20), datetime.datetime(2016, 2, 8, 12, 30))
+            )
+            self.assertEqual(
+                self.obj.calculate_interval_thresholds(time_high = ts_utc, interval = '5_minutes', adjust = True),
+                (datetime.datetime(2016, 2, 8, 12, 25), datetime.datetime(2016, 2, 8, 12, 30))
+            )
+
+    def test_03_calculate_upper_threshold(self):
+        """
+        Perform tests of upper threshold calculations.
+        """
+        self.maxDiff = None
+
+        self.obj.plugin()
+
+        # Test the interval threshold calculations
+        timestamps_utc = [
+            1454934691,
+            '2016-02-08T12:31:31Z',
+            datetime.datetime.utcfromtimestamp(1454934691),
+        ]
+        self.assertEqual(timestamps_utc[2].isoformat(), '2016-02-08T12:31:31')
+
+        for ts_utc in timestamps_utc:
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = 'daily'),
+                datetime.datetime(2016, 2, 8, 12, 31, 31)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = 'daily', adjust = True),
+                datetime.datetime(2016, 2, 8, 1, 0)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '12_hourly', adjust = True),
+                datetime.datetime(2016, 2, 8, 1, 0)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '6_hourly', adjust = True),
+                datetime.datetime(2016, 2, 8, 7, 0)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '4_hourly', adjust = True),
+                datetime.datetime(2016, 2, 8, 9, 0)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '3_hourly', adjust = True),
+                datetime.datetime(2016, 2, 8, 10, 0)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '2_hourly', adjust = True),
+                datetime.datetime(2016, 2, 8, 11, 0)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = 'hourly', adjust = True),
+                datetime.datetime(2016, 2, 8, 12, 0)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '30_minutes', adjust = True),
+                datetime.datetime(2016, 2, 8, 12, 30)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '20_minutes', adjust = True),
+                datetime.datetime(2016, 2, 8, 12, 20)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '15_minutes', adjust = True),
+                datetime.datetime(2016, 2, 8, 12, 30)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '10_minutes', adjust = True),
+                datetime.datetime(2016, 2, 8, 12, 30)
+            )
+            self.assertEqual(
+                self.obj.calculate_upper_threshold(time_high = ts_utc, interval = '5_minutes', adjust = True),
+                datetime.datetime(2016, 2, 8, 12, 30)
+            )
+
+
+#-------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     unittest.main()
