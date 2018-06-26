@@ -15,6 +15,7 @@
 *.txz
 *.deb
 *.whl
+*.sublime-*
 
 # Python related stuff.
 *.pyc
