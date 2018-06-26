@@ -410,7 +410,7 @@ class ZenScript(pyzenkit.baseapp.BaseApp):
         cbk = getattr(self, command_cbkname, None)
         if cbk:
             self.logger.info("Executing script command '%s'", command_name)
-            self.runlog[command_name] = cbk()
+            self.runlog[command_name] = cbk()  # pylint: disable=locally-disabled,not-callable
         else:
             raise ZenScriptException("Invalid script command '{}', callback '{}' does not exist".format(command_name, command_cbkname))
 

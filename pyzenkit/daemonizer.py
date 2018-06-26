@@ -158,13 +158,13 @@ def _setup_pf(pid_file):
 
         # Define and setup 'atexit' closure, that will take care of removing pid file
         @atexit.register
-        def unlink_pidfile():
+        def unlink_pidfile():  # pylint: disable=locally-disabled,unused-variable
             """
             Callback for removing PID file at application exit.
             """
             try:
                 os.unlink(pid_file)
-            except Exception:
+            except:  # pylint: disable=locally-disabled,bare-except
                 pass
         return (pid, pid_file)
     else:
@@ -173,7 +173,7 @@ def _setup_pf(pid_file):
 #-------------------------------------------------------------------------------
 
 
-def daemonize_lite(
+def daemonize_lite(  # pylint: disable=locally-disabled,too-many-arguments
         chroot_dir = None, work_dir = None, umask = None, uid = None, gid = None,
         pid_file = None, signals = None):
     """
@@ -205,7 +205,7 @@ def daemonize_lite(
     # Write PID into PID file.
     return _setup_pf(pid_file)
 
-def daemonize(
+def daemonize(  # pylint: disable=locally-disabled,too-many-arguments
         chroot_dir = None, work_dir = None, umask = None, uid = None, gid = None,
         pid_file = None, files_preserve = None, signals = None):
     """
@@ -237,10 +237,10 @@ def daemonize(
 
     # Doublefork and split session to fully detach from current terminal.
     if os.fork()>0:
-        os._exit(0)
+        os._exit(0)  # pylint: disable=locally-disabled,protected-access
     os.setsid()
     if os.fork()>0:
-        os._exit(0)
+        os._exit(0)  # pylint: disable=locally-disabled,protected-access
 
     # Setup signal handlers.
     _setup_sh(signals)
@@ -275,15 +275,15 @@ def daemonize(
 #
 if __name__ == "__main__":
 
-    def hnd_sig_hup(signum, frame):
+    def hnd_sig_hup(signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """Bogus handler for signal HUP for demonstration purposes."""
         print("HANDLER CALLBACK: Received signal HUP ({})".format(signum))
 
-    def hnd_sig_usr1(signum, frame):
+    def hnd_sig_usr1(signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """Bogus handler for signal USR1 for demonstration purposes."""
         print("HANDLER CALLBACK: Received signal USR1 ({})".format(signum))
 
-    def hnd_sig_usr2(signum, frame):
+    def hnd_sig_usr2(signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """Bogus handler for signal USR2 for demonstration purposes."""
         print("HANDLER CALLBACK: Received signal USR2 ({})".format(signum))
 

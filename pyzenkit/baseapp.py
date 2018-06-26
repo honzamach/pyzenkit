@@ -369,8 +369,8 @@ import traceback
 #
 # Custom libraries.
 #
-import pyzenkit.jsonconf
 import pydgets.widgets
+import pyzenkit.jsonconf
 
 
 #-------------------------------------------------------------------------------
@@ -447,19 +447,19 @@ class ZenAppPlugin:
         """
         return self.__class__.__name__
 
-    def init_argparser(self, app, argparser, **kwargs):
+    def init_argparser(self, app, argparser, **kwargs):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
         Callback to be called during argparser initialization phase.
         """
         return argparser
 
-    def init_config(self, app, config, **kwargs):
+    def init_config(self, app, config, **kwargs):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
         Callback to be called during default configuration initialization phase.
         """
         return config
 
-    def init_runlog(self, app, runlog, **kwargs):
+    def init_runlog(self, app, runlog, **kwargs):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
         Callback to be called during runlog initialization phase.
         """
@@ -883,6 +883,14 @@ class BaseApp:
         """
         raise NotImplementedError("Method must be implemented in subclass")
 
+    def _sub_stage_evaluate(self):
+        """
+        **SUBCLASS HOOK**: Perform additional evaluation actions in **evaluate** stage.
+
+        Gets called from :py:func:`~BaseApp._stage_evaluate` and it is a **EVALUATE SUBSTAGE 01**.
+        """
+        pass
+
     def _sub_stage_teardown(self):
         """
         **SUBCLASS HOOK**: Perform additional teardown actions in **teardown** stage.
@@ -891,25 +899,25 @@ class BaseApp:
         """
         pass
 
-    def _sub_runlog_analyze(self, runlog, analysis):
+    def _sub_runlog_analyze(self, runlog, analysis):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
         **SUBCLASS HOOK**: Analyze given runlog.
         """
         return analysis
 
-    def _sub_runlog_format_analysis(self, analysis):
+    def _sub_runlog_format_analysis(self, analysis):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
         **SUBCLASS HOOK**: Format given runlog analysis.
         """
         pass
 
-    def _sub_runlogs_evaluate(self, runlogs, evaluation):
+    def _sub_runlogs_evaluate(self, runlogs, evaluation):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
         **SUBCLASS HOOK**: Evaluate given runlog analyses.
         """
         return evaluation
 
-    def _sub_runlogs_format_evaluation(self, evaluation):
+    def _sub_runlogs_format_evaluation(self, evaluation):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
         **SUBCLASS HOOK**: Format given runlogs evaluation.
         """
@@ -961,7 +969,7 @@ class BaseApp:
             self._config_file = pyzenkit.jsonconf.config_load(self.c(self.CONFIG_CFG_FILE))
             self.dbgout("Loaded contents of configuration file '{}'".format(self.c(self.CONFIG_CFG_FILE)))
 
-        except FileNotFoundError as exc:
+        except FileNotFoundError:
             raise ZenAppSetupException("Configuration file '{}' does not exist".format(self.c(self.CONFIG_CFG_FILE)))
 
     def _configure_from_dir(self):
@@ -978,7 +986,7 @@ class BaseApp:
             self._config_dir = pyzenkit.jsonconf.config_load_dir(self.c(self.CONFIG_CFG_DIR))
             self.dbgout("Loaded contents of configuration directory '{}'".format(self.c(self.CONFIG_CFG_DIR)))
 
-        except FileNotFoundError as exc:
+        except FileNotFoundError:
             raise ZenAppSetupException("Configuration directory '{}' does not exist".format(self.c(self.CONFIG_CFG_DIR)))
 
     def _configure_merge(self):
@@ -1050,13 +1058,13 @@ class BaseApp:
                 try:
                     res = pwd.getpwnam(usa)
                     self.config[self.CONFIG_USER] = [res[0], res[2]]
-                except:
+                except:  # pylint: disable=locally-disabled,bare-except
                     pass
             if not res:
                 try:
                     res = pwd.getpwuid(int(usa))
                     self.config[self.CONFIG_USER] = [res[0], res[2]]
-                except:
+                except:  # pylint: disable=locally-disabled,bare-except
                     pass
             if not res:
                 raise ZenAppSetupException("Requested unknown user account '{}'".format(usa))
@@ -1071,13 +1079,13 @@ class BaseApp:
                 try:
                     res = grp.getgrnam(gra)
                     self.config[self.CONFIG_GROUP] = [res[0], res[2]]
-                except:
+                except:  # pylint: disable=locally-disabled,bare-except
                     pass
             if not res:
                 try:
                     res = grp.getgrgid(int(gra))
                     self.config[self.CONFIG_GROUP] = [res[0], res[2]]
-                except:
+                except:  # pylint: disable=locally-disabled,bare-except
                     pass
             if not res:
                 raise ZenAppSetupException("Requested unknown group account '{}'".format(gra))
@@ -1181,17 +1189,17 @@ class BaseApp:
 
         Gets called from :py:func:`~BaseApp._stage_setup`.
         """
-        cc = self.cc(self.CORE_LOGGING, {})
-        if cc[self.CORE_LOGGING_TOCONS] or cc[self.CORE_LOGGING_TOFILE]:
+        ccl = self.cc(self.CORE_LOGGING, {})
+        if ccl[self.CORE_LOGGING_TOCONS] or ccl[self.CORE_LOGGING_TOFILE]:
             # [PUBLIC] Register the logger object as internal attribute.
             self.logger = logging.getLogger('zenapplogger')
-            self.logger.setLevel(cc[self.CORE_LOGGING_LEVEL])
+            self.logger.setLevel(ccl[self.CORE_LOGGING_LEVEL])
 
             # Setup console logging.
-            if cc[self.CORE_LOGGING_TOCONS]:
-                logging_level = getattr(logging, cc[self.CORE_LOGGING_LEVELC], None)
+            if ccl[self.CORE_LOGGING_TOCONS]:
+                logging_level = getattr(logging, ccl[self.CORE_LOGGING_LEVELC], None)
                 if not isinstance(logging_level, int):
-                    raise ValueError("Invalid log severity level '{}'".format(cc[self.CORE_LOGGING_LEVELC]))
+                    raise ValueError("Invalid log severity level '{}'".format(ccl[self.CORE_LOGGING_LEVELC]))
 
                 # Initialize console logging handler.
                 fm1 = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
@@ -1199,13 +1207,13 @@ class BaseApp:
                 ch1.setLevel(logging_level)
                 ch1.setFormatter(fm1)
                 self.logger.addHandler(ch1)
-                self.dbgout("Logging to console with severity threshold '{}'".format(cc[self.CORE_LOGGING_LEVELC]))
+                self.dbgout("Logging to console with severity threshold '{}'".format(ccl[self.CORE_LOGGING_LEVELC]))
 
             # Setup file logging
-            if cc[self.CORE_LOGGING_TOFILE]:
-                logging_level = getattr(logging, cc[self.CORE_LOGGING_LEVELF], None)
+            if ccl[self.CORE_LOGGING_TOFILE]:
+                logging_level = getattr(logging, ccl[self.CORE_LOGGING_LEVELF], None)
                 if not isinstance(logging_level, int):
-                    raise ValueError("Invalid log severity level '{}'".format(cc[self.CORE_LOGGING_LEVELF]))
+                    raise ValueError("Invalid log severity level '{}'".format(ccl[self.CORE_LOGGING_LEVELF]))
 
                 lfn = self.c(self.CONFIG_LOG_FILE)
                 fm2 = logging.Formatter('%(asctime)s {} [%(process)d] %(levelname)s: %(message)s'.format(self.name))
@@ -1214,7 +1222,7 @@ class BaseApp:
                 ch2.setLevel(logging_level)
                 ch2.setFormatter(fm2)
                 self.logger.addHandler(ch2)
-                self.dbgout("Logging to log file '{}' with severity threshold '{}'".format(lfn, cc[self.CORE_LOGGING_LEVELF]))
+                self.dbgout("Logging to log file '{}' with severity threshold '{}'".format(lfn, ccl[self.CORE_LOGGING_LEVELF]))
 
     def _stage_setup_pstate(self):
         """
@@ -1416,15 +1424,11 @@ class BaseApp:
         **STAGE:** *EVALUATE*.
 
         Perform application runlog postprocessing evaluation.
-
-        ..todo::
-
-            Work in progress, not implemented yet.
         """
         self.time_mark('stage_evaluate_start', 'Start of the evaluation stage')
 
         try:
-            pass
+            self._sub_stage_evaluate()
 
         except ZenAppEvaluateException as exc:
             self.error("Evaluation exception: {}".format(exc))
@@ -1657,7 +1661,7 @@ class BaseApp:
                 analysis[self.RLANKEY_DURATIONS][matchg] = tmark['time'] - tm_tmp[matchg]
                 if matchg in ('stage_configure', 'stage_check', 'stage_setup'):
                     analysis[self.RLANKEY_DURPRE] += analysis[self.RLANKEY_DURATIONS][matchg]
-                elif matchg in ('stage_process'):
+                elif matchg == 'stage_process':
                     analysis[self.RLANKEY_DURPROC] += analysis[self.RLANKEY_DURATIONS][matchg]
                 elif matchg in ('stage_evaluate', 'stage_teardown'):
                     analysis[self.RLANKEY_DURPOST] += analysis[self.RLANKEY_DURATIONS][matchg]
@@ -1853,7 +1857,7 @@ class BaseApp:
     #---------------------------------------------------------------------------
 
 
-    def c(self, key, default = None):
+    def c(self, key, default = None):  # pylint: disable=locally-disabled,invalid-name
         """
         Shortcut method: Get given configuration value, shortcut for:
 
@@ -1867,7 +1871,7 @@ class BaseApp:
             return self.config.get(key)
         return self.config.get(key, default)
 
-    def cc(self, key, default = None):
+    def cc(self, key, default = None):  # pylint: disable=locally-disabled,invalid-name
         """
         Shortcut method: Get given core configuration value, shortcut for:
 
@@ -1885,7 +1889,7 @@ class BaseApp:
             return self.config[self.CORE].get(key)
         return self.config[self.CORE].get(key, default)
 
-    def p(self, string, level = 0):
+    def p(self, string, level = 0):  # pylint: disable=locally-disabled,invalid-name
         """
         Print given string to ``sys.stdout`` with respect to ``quiet`` and ``verbosity``
         settings.
@@ -1915,7 +1919,7 @@ class BaseApp:
 
         if trcb:
             tbexc = traceback.format_tb(trcb)
-            self.logger.error("\n" + "".join(tbexc))
+            self.logger.error("\n%s", "".join(tbexc))
 
         self.runlog[self.RLKEY_ERRORS].append(errstr)
         self.runlog[self.RLKEY_RESULT] = self.RESULT_FAILURE

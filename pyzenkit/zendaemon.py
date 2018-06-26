@@ -383,7 +383,7 @@ class ZenDaemonComponent:
     This approach enables very easy reusability.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs):  # pylint: disable=locally-disabled,unused-argument
         """
         Base daemon component object constructor.
         """
@@ -571,7 +571,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         else:
             self.callbacks[event].insert(0, callback)
 
-    def _init_callbacks(self, **kwargs):
+    def _init_callbacks(self, **kwargs):  # pylint: disable=locally-disabled,unused-argument
         """
         Initialize internal event callbacks.
         """
@@ -664,13 +664,13 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
     #---------------------------------------------------------------------------
 
 
-    def _hnd_signal_wakeup(self, signum, frame):
+    def _hnd_signal_wakeup(self, signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """
         Signal handler - wakeup after sleep/pause.
         """
         self.logger.info("Received wakeup signal (%s)", signum)
 
-    def _hnd_signal_hup(self, signum, frame):
+    def _hnd_signal_hup(self, signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """
         Signal handler - **SIGHUP**
 
@@ -680,7 +680,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.logger.warning("Received signal 'SIGHUP' (%s)", signum)
         self.queue.schedule_next(self.EVENT_SIGNAL_HUP)
 
-    def _hnd_signal_usr1(self, signum, frame):
+    def _hnd_signal_usr1(self, signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """
         Signal handler - **SIGUSR1**
 
@@ -690,7 +690,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.logger.info("Received signal 'SIGUSR1' (%s)", signum)
         self.queue.schedule_next(self.EVENT_SIGNAL_USR1)
 
-    def _hnd_signal_usr2(self, signum, frame):
+    def _hnd_signal_usr2(self, signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """
         Signal handler - **SIGUSR2**
 
@@ -704,7 +704,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
     #---------------------------------------------------------------------------
 
 
-    def cbk_event_signal_hup(self, daemon, args = None):
+    def cbk_event_signal_hup(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
         """
         Event callback for handling signal - **SIGHUP**
 
@@ -716,7 +716,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.logger.warning("Handling event for signal 'SIGHUP'")
         return (self.FLAG_CONTINUE, args)
 
-    def cbk_event_signal_usr1(self, daemon, args = None):
+    def cbk_event_signal_usr1(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
         """
         Event callback for handling signal - **SIGUSR1**
 
@@ -727,7 +727,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self._utils_runlog_save(self.runlog)
         return (self.FLAG_CONTINUE, args)
 
-    def cbk_event_signal_usr2(self, daemon, args = None):
+    def cbk_event_signal_usr2(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
         """
         Event callback for handling signal - **SIGUSR2**
 
@@ -742,7 +742,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             self._utils_state_save(self._get_state())
         return (self.FLAG_CONTINUE, args)
 
-    def cbk_event_log_statistics(self, daemon, args):
+    def cbk_event_log_statistics(self, daemon, args):  # pylint: disable=locally-disabled,unused-argument
         """
         Periodical processing statistics logging.
         """
@@ -1050,9 +1050,10 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         except pyzenkit.baseapp.ZenAppException as exc:
             self.error("ZenAppException: {}".format(exc))
 
-        except:
+        except:  # pylint: disable=locally-disabled,bare-except
             (exct, excv, exctb) = sys.exc_info()
-            self.error("Exception: {}".format(excv), trcb = exctb)
+            self.error("Exception {}: {}".format(exct, excv), trcb = exctb)
+
 
 class DemoDaemonComponent(ZenDaemonComponent):
     """
@@ -1067,7 +1068,7 @@ class DemoDaemonComponent(ZenDaemonComponent):
             { 'event': 'default', 'callback': self.cbk_event_default, 'prepend': False }
         ]
 
-    def cbk_event_default(self, daemon, args = None):
+    def cbk_event_default(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
         """
         Callback handler for default event.
         """
@@ -1077,6 +1078,7 @@ class DemoDaemonComponent(ZenDaemonComponent):
         time.sleep(1)
         daemon.logger.info("Work unit done")
         return (daemon.FLAG_CONTINUE, None)
+
 
 class DemoZenDaemon(ZenDaemon):
     """
