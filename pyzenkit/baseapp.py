@@ -1798,6 +1798,7 @@ class BaseApp:
                 str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_AVGDURPROC])),
                 evaluation[self.RLEVKEY_AVGEFFECT]
             ))
+        self.p("")
 
         self._sub_runlogs_format_evaluation(evaluation)
 
