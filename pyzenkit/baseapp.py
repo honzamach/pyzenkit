@@ -580,7 +580,16 @@ class BaseApp:
     RLANKEY_EFFECTIVITY = 'effectivity'
 
     # List of runlog evaluation keys.
-    RLEVKEY_ANALYSES = 'analyses'
+    RLEVKEY_ANALYSES   = 'analyses'
+    RLEVKEY_MINDURRUN  = 'min_dur_run'
+    RLEVKEY_MAXDURRUN  = 'max_dur_run'
+    RLEVKEY_AVGDURRUN  = 'avg_dur_run'
+    RLEVKEY_MINDURPROC = 'min_dur_proc'
+    RLEVKEY_MAXDURPROC = 'max_dur_proc'
+    RLEVKEY_AVGDURPROC = 'avg_dur_proc'
+    RLEVKEY_MINEFFECT  = 'min_effectivity'
+    RLEVKEY_MAXEFFECT  = 'max_effectivity'
+    RLEVKEY_AVGEFFECT  = 'avg_effectivity'
 
 
     #---------------------------------------------------------------------------
@@ -883,13 +892,17 @@ class BaseApp:
         """
         raise NotImplementedError("Method must be implemented in subclass")
 
-    def _sub_stage_evaluate(self):
+    def _sub_stage_evaluate(self, analysis):
         """
         **SUBCLASS HOOK**: Perform additional evaluation actions in **evaluate** stage.
 
         Gets called from :py:func:`~BaseApp._stage_evaluate` and it is a **EVALUATE SUBSTAGE 01**.
         """
-        pass
+        self.logger.info(
+            "Application runtime: '%s' (effectivity %6.2f %%)",
+            datetime.timedelta(seconds = analysis[self.RLANKEY_DURRUN]),
+            analysis[self.RLANKEY_EFFECTIVITY]
+        )
 
     def _sub_stage_teardown(self):
         """
@@ -1428,7 +1441,11 @@ class BaseApp:
         self.time_mark('stage_evaluate_start', 'Start of the evaluation stage')
 
         try:
-            self._sub_stage_evaluate()
+            # Perform runlog analysis.
+            analysis = self.runlog_analyze(self.runlog)
+
+            # Evaluate the analysis.
+            self._sub_stage_evaluate(analysis)
 
         except ZenAppEvaluateException as exc:
             self.error("Evaluation exception: {}".format(exc))
@@ -1534,7 +1551,8 @@ class BaseApp:
                 self.p("There are no runlog files")
                 return
 
-        self.p("Viewing application runlog '{}':".format(input_file))
+        self.p("")
+        self.p("Raw view of application runlog '{}':".format(input_file))
         runlog = self.json_load(input_file)
         self.p("")
         tree = pydgets.widgets.TreeWidget()
@@ -1555,12 +1573,14 @@ class BaseApp:
                 self.p("There are no runlog files")
                 return
 
+        self.p("")
         self.p("Viewing application runlog '{}':".format(input_file))
         runlog = self.json_load(input_file)
         self.p("")
         analysis = self.runlog_analyze(runlog)
 
         self.runlog_format_analysis(analysis)
+        self.p("")
 
     def cbk_action_runlogs_list(self):
         """
@@ -1574,6 +1594,7 @@ class BaseApp:
         for rlf in runlog_files:
             runlogtree[rld].append(rlf)
 
+        self.p("")
         self.p("Listing application runlogs in directory '{}':".format(rld))
         self.p("  Runlog(s) found: {:,d}".format(rlcount))
         if limit:
@@ -1582,6 +1603,7 @@ class BaseApp:
             self.p("")
             tree = pydgets.widgets.TreeWidget()
             self.p("\n".join(tree.render(runlogtree)))
+        self.p("")
 
     def cbk_action_runlogs_dump(self):
         """
@@ -1594,6 +1616,7 @@ class BaseApp:
         for rlf in runlog_files:
             runlogs.append((rlf, self.json_load(rlf)))
 
+        self.p("")
         self.p("Dumping application runlog(s) in directory '{}':".format(rld))
         self.p("  Runlog(s) found: {:,d}".format(rlcount))
         if limit:
@@ -1604,6 +1627,7 @@ class BaseApp:
             for runl in runlogs:
                 self.p("Runlog '{}':".format(runl[0]))
                 self.p("\n".join(tree.render(runl[1])))
+        self.p("")
 
     def cbk_action_runlogs_evaluate(self):
         """
@@ -1616,6 +1640,7 @@ class BaseApp:
         for rlf in runlog_files:
             runlogs.append(self.json_load(rlf))
 
+        self.p("")
         self.p("Evaluating application runlogs in directory '{}':".format(rld))
         self.p("  Runlog(s) found: {:,d}".format(rlcount))
         if limit:
@@ -1624,6 +1649,7 @@ class BaseApp:
             self.p("")
             evaluation = self.runlogs_evaluate(runlogs)
             self.runlogs_format_evaluation(evaluation)
+        self.p("")
 
 
     #---------------------------------------------------------------------------
@@ -1643,6 +1669,7 @@ class BaseApp:
         analysis[self.RLANKEY_AGE]     = curt - runlog[self.RLKEY_TS]
         analysis[self.RLANKEY_RESULT]  = runlog[self.RLKEY_RESULT]
         analysis[self.RLANKEY_COMMAND] = runlog.get(self.RLANKEY_COMMAND, runlog.get('operation', 'unknown'))
+
         # Calculate application processing duration
         analysis[self.RLANKEY_DURRUN]  = runlog[self.RLKEY_TMARKS][-1]['time'] - runlog[self.RLKEY_TMARKS][0]['time']
 
@@ -1674,21 +1701,33 @@ class BaseApp:
         """
         Format given runlog analysis.
         """
+        self.p("General information:")
         tablew = pydgets.widgets.TableWidget()
         tcols = [
             { 'label': 'Statistics', 'data_formating': '{:s}', 'align': '<' },
             { 'label': 'Value',      'data_formating': '{:s}', 'align': '>' },
         ]
         tbody = [
-            ['Label:',   analysis[self.RLANKEY_LABEL]],
-            ['Age:',     str(datetime.timedelta(seconds=int(analysis[self.RLANKEY_AGE])))],
-            ['Command:', analysis[self.RLANKEY_COMMAND]],
-            ['Result:',  analysis[self.RLANKEY_RESULT]],
+            ['Label:',       analysis[self.RLANKEY_LABEL]],
+            ['Runtime:',     str(datetime.timedelta(seconds=analysis[self.RLANKEY_DURRUN]))],
+            ['Effectivity:', '{:6.2f} %'.format(analysis[self.RLANKEY_EFFECTIVITY])],
+            ['Age:',         str(datetime.timedelta(seconds=int(analysis[self.RLANKEY_AGE])))],
+            ['Command:',     analysis[self.RLANKEY_COMMAND]],
+            ['Errors:',      str(len(analysis[self.RLANKEY_RUNLOG][self.RLKEY_ERRORS]))],
+            ['Result:',      analysis[self.RLANKEY_RESULT]],
         ]
         self.p("\n".join(tablew.render(tbody, columns = tcols, enumerate = False, header = False)))
 
-        treew = pydgets.widgets.TreeWidget()
-        self.p("\n".join(treew.render(analysis)))
+        if analysis[self.RLANKEY_RUNLOG][self.RLKEY_ERRORS]:
+            self.p("")
+            self.p("Processing errors:")
+            listw = pydgets.widgets.ListWidget()
+            self.p("\n".join(listw.render(analysis[self.RLANKEY_RUNLOG][self.RLKEY_ERRORS])))
+
+        #self.p("")
+        #self.p("Full analysis:")
+        #treew = pydgets.widgets.TreeWidget()
+        #self.p("\n".join(treew.render(analysis)))
 
         self._sub_runlog_format_analysis(analysis)
 
@@ -1700,6 +1739,16 @@ class BaseApp:
         for runl in runlogs:
             rslt = self.runlog_analyze(runl)
             evaluation[self.RLEVKEY_ANALYSES].append(rslt)
+        if evaluation[self.RLEVKEY_ANALYSES]:
+            evaluation[self.RLEVKEY_MINDURRUN] = min([x[self.RLANKEY_DURRUN] for x in evaluation[self.RLEVKEY_ANALYSES]])
+            evaluation[self.RLEVKEY_MAXDURRUN] = max([x[self.RLANKEY_DURRUN] for x in evaluation[self.RLEVKEY_ANALYSES]])
+            evaluation[self.RLEVKEY_AVGDURRUN] = sum([x[self.RLANKEY_DURRUN] for x in evaluation[self.RLEVKEY_ANALYSES]]) / len(evaluation[self.RLEVKEY_ANALYSES])
+            evaluation[self.RLEVKEY_MINDURPROC] = min([x[self.RLANKEY_DURPROC] for x in evaluation[self.RLEVKEY_ANALYSES]])
+            evaluation[self.RLEVKEY_MAXDURPROC] = max([x[self.RLANKEY_DURPROC] for x in evaluation[self.RLEVKEY_ANALYSES]])
+            evaluation[self.RLEVKEY_AVGDURPROC] = sum([x[self.RLANKEY_DURPROC] for x in evaluation[self.RLEVKEY_ANALYSES]]) / len(evaluation[self.RLEVKEY_ANALYSES])
+            evaluation[self.RLEVKEY_MINEFFECT] = min([x[self.RLANKEY_EFFECTIVITY] for x in evaluation[self.RLEVKEY_ANALYSES]])
+            evaluation[self.RLEVKEY_MAXEFFECT] = max([x[self.RLANKEY_EFFECTIVITY] for x in evaluation[self.RLEVKEY_ANALYSES]])
+            evaluation[self.RLEVKEY_AVGEFFECT] = sum([x[self.RLANKEY_EFFECTIVITY] for x in evaluation[self.RLEVKEY_ANALYSES]]) / len(evaluation[self.RLEVKEY_ANALYSES])
         return self._sub_runlogs_evaluate(runlogs, evaluation)
 
     def runlogs_format_evaluation(self, evaluation):
@@ -1722,8 +1771,8 @@ class BaseApp:
                 [
                     anl[self.RLANKEY_LABEL],
                     str(datetime.timedelta(seconds=int(anl[self.RLANKEY_AGE]))),
-                    str(datetime.timedelta(seconds=int(anl[self.RLANKEY_DURRUN]))),
-                    str(datetime.timedelta(seconds=int(anl[self.RLANKEY_DURPROC]))),
+                    str(datetime.timedelta(seconds=anl[self.RLANKEY_DURRUN])),
+                    str(datetime.timedelta(seconds=anl[self.RLANKEY_DURPROC])),
                     anl[self.RLANKEY_EFFECTIVITY],
                     len(anl[self.RLANKEY_RUNLOG][self.RLKEY_ERRORS]),
                     anl[self.RLANKEY_COMMAND],
@@ -1733,6 +1782,22 @@ class BaseApp:
         self.p("General application processing statistics:")
         tablew = pydgets.widgets.TableWidget()
         self.p("\n".join(tablew.render(table_data, columns = table_columns)))
+        if evaluation[self.RLEVKEY_ANALYSES]:
+            self.p("                   Minimal value: {:s}   {:s}   {:6.2f}".format(
+                str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_MINDURRUN])),
+                str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_MINDURPROC])),
+                evaluation[self.RLEVKEY_MINEFFECT]
+            ))
+            self.p("                   Maximal value: {:s}   {:s}   {:6.2f}".format(
+                str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_MAXDURRUN])),
+                str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_MAXDURPROC])),
+                evaluation[self.RLEVKEY_MAXEFFECT]
+            ))
+            self.p("                   Average value: {:s}   {:s}   {:6.2f}".format(
+                str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_AVGDURRUN])),
+                str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_AVGDURPROC])),
+                evaluation[self.RLEVKEY_AVGEFFECT]
+            ))
 
         self._sub_runlogs_format_evaluation(evaluation)
 
