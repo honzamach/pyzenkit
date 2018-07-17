@@ -28,7 +28,7 @@
 
     *Type:* ``string``, *default:* ``0o002``
 
-``--stats_interval interval``
+``--stats-interval interval``
     Processing statistics display interval in seconds.
 
     *Type:* ``integer``, *default:* ``300``
