@@ -4,7 +4,7 @@
 # This file is part of PyZenKit project (https://pypi.python.org/pypi/pyzenkit).
 #
 # Copyright (C) since 2015 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author.
@@ -141,8 +141,7 @@ pyflakes-test: FORCE
 	@echo "\n${GREEN}*** Checking test files with pyflakes ***${NC}\n"
 	-@python3 -m pyflakes $(DIR_LIB)/tests/*.py
 
-pylint: FORCE
-	@echo "\n${GREEN}*** Checking test files with pylint - DISABLED ***${NC}\n"
+pylint: pylint-lib pylint-test
 
 pylint-lib: FORCE
 	@echo "\n${GREEN}*** Checking code with pylint ***${NC}\n"

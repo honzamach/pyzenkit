@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #-------------------------------------------------------------------------------
-# Copyright (C) 2015-2016 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) 2015-2016 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this source is governed by the MIT license, see LICENSE file.
 #-------------------------------------------------------------------------------
 
@@ -22,4 +22,4 @@ class TestModule(ZenCLIModule):
 if __name__ == "__main__":
     module = TestModule()
     module.process()
-    
+

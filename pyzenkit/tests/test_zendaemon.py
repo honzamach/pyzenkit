@@ -4,24 +4,25 @@
 # This file is part of PyZenKit package.
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author. Later
 # it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
+
+"""
+Unit test module for testing the :py:mod:`pyzenkit.zendaemon` module.
+"""
+
+__author__ = "Honza Mach <honza.mach.ml@gmail.com>"
+
+
 import unittest
-from unittest.mock import Mock, MagicMock, call
-from pprint import pformat, pprint
 
 import os
-import sys
 import shutil
-
-# Generate the path to custom 'lib' directory
-lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-sys.path.insert(0, lib)
 
 import pyzenkit.baseapp
 import pyzenkit.zendaemon
@@ -35,6 +36,9 @@ CFG_FILE_NAME  = '/tmp/{}.conf'.format(DMN_NAME)  # Name of the daemon configura
 CFG_DIR_NAME   = '/tmp/{}'.format(DMN_NAME)       # Name of the daemon configuration directory
 
 class TestPyzenkitZenDaemon(unittest.TestCase):
+    """
+    Unit test class for testing the :py:class:`pyzenkit.zendaemon.ZenDaemon` class.
+    """
 
     def setUp(self):
         pyzenkit.baseapp.BaseApp.json_save(CFG_FILE_NAME, {'test': 'x'})
@@ -49,13 +53,7 @@ class TestPyzenkitZenDaemon(unittest.TestCase):
         os.remove(CFG_FILE_NAME)
         shutil.rmtree(CFG_DIR_NAME)
 
-    def test_01_basic(self):
-        """
-        Perform the basic operativity tests.
-        """
-        self.assertTrue(True)
-
-    def test_02_calc_statistics(self):
+    def test_01_calc_statistics(self):
         """
         Perform the test of statistics calculation.
         """
@@ -66,13 +64,20 @@ class TestPyzenkitZenDaemon(unittest.TestCase):
             {},
             50
         )
-        self.assertEqual(result, {
-            'cnt_test_a1': {'cnt': 50, 'inc': 50, 'pct': 100.0, 'spd': 1.0},
-            'cnt_test_a2': {'cnt': 100, 'inc': 100, 'pct': 100.0, 'spd': 2.0},
-            'sub': {
-                'cnt_test_b1': {'cnt': 500, 'inc': 500, 'pct': 100.0, 'spd': 10.0},
-                'cnt_test_b2': {'cnt': 1000, 'inc': 1000, 'pct': 100.0, 'spd': 20.0}}}
+        self.assertEqual(
+            result,
+            {
+                'cnt_test_a1': {'cnt': 50, 'inc': 50, 'pct': 100.0, 'spd': 1.0},
+                'cnt_test_a2': {'cnt': 100, 'inc': 100, 'pct': 100.0, 'spd': 2.0},
+                'sub': {
+                    'cnt_test_b1': {'cnt': 500, 'inc': 500, 'pct': 100.0, 'spd': 10.0},
+                    'cnt_test_b2': {'cnt': 1000, 'inc': 1000, 'pct': 100.0, 'spd': 20.0}}
+            }
         )
+
+
+#-------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     unittest.main()

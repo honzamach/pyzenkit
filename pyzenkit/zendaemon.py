@@ -4,7 +4,7 @@
 # This file is part of PyZenKit package.
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author. Later
@@ -162,8 +162,7 @@ Programming API
     * :py:func:`ZenDaemon.wait` - Pause the processing for given amount of time.
 """
 
-
-__author__  = "Jan Mach <honza.mach.ml@gmail.com>"
+__author__  = "Honza Mach <honza.mach.ml@gmail.com>"
 
 
 import os
@@ -300,7 +299,7 @@ class EventQueueManager:
         len1 = len(self.events_at)
         if len1:
             if self.events_at[0][0] <= time.time():
-                (tstamp, event, args) = heapq.heappop(self.events_at)
+                (tstamp, event, args) = heapq.heappop(self.events_at)  # pylint: disable=locally-disabled,unused-variable
                 return (event, args)
         len2 = len(self.events)
         if len2:

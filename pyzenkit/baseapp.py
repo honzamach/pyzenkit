@@ -4,7 +4,7 @@
 # This file is part of PyZenKit package.
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author. Later
@@ -347,8 +347,7 @@ used to enhance the default output of ``runlog-*`` built-in actions:
 * :py:func:`BaseApp._sub_runlogs_format_evaluation`
 """
 
-
-__author__  = "Jan Mach <honza.mach.ml@gmail.com>"
+__author__  = "Honza Mach <honza.mach.ml@gmail.com>"
 
 
 import os
@@ -481,7 +480,7 @@ class ZenAppPlugin:
 #-------------------------------------------------------------------------------
 
 
-class BaseApp:
+class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-many-instance-attributes
     """
     Base implementation of generic executable application. This class attempts to
     provide robust and stable framework, which can be used to writing all kinds

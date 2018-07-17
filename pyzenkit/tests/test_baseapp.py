@@ -4,7 +4,7 @@
 # This file is part of PyZenKit package.
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author. Later
@@ -12,18 +12,17 @@
 #-------------------------------------------------------------------------------
 
 
+"""
+Unit test module for testing the :py:mod:`pyzenkit.baseapp` module.
+"""
+
+__author__ = "Honza Mach <honza.mach.ml@gmail.com>"
+
+
 import unittest
-from unittest.mock import Mock, MagicMock, call
-from pprint import pformat, pprint
 
 import os
-import sys
 import shutil
-
-
-# Generate the path to custom 'lib' directory
-lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-sys.path.insert(0, lib)
 
 import pyzenkit.baseapp
 
@@ -38,6 +37,9 @@ CFG_DIR_NAME   = '/tmp/{}'.format(APP_NAME)       # Name of the application conf
 
 
 class TestPyzenkitBaseApp(unittest.TestCase):
+    """
+    Unit test class for testing the :py:class:`pyzenkit.baseapp.BaseApp` class.
+    """
 
     def setUp(self):
         pyzenkit.baseapp.BaseApp.json_save(CFG_FILE_NAME, {'test': 'x'})
@@ -82,27 +84,31 @@ class TestPyzenkitBaseApp(unittest.TestCase):
         self.maxDiff = None
 
         # Test argument parsing.
-        argp = self.obj._init_argparser()
-        self.assertEqual(vars(argp.parse_args(['--verbose'])), {'action': None,
-            'config_dir': None,
-            'config_file': None,
-            'debug': None,
-            'group': None,
-            'input': None,
-            'limit': None,
-            'log_file': None,
-            'log_level': None,
-            'name': None,
-            'pstate_dump': None,
-            'pstate_file': None,
-            'pstate_log': None,
-            'quiet': None,
-            'runlog_dir': None,
-            'runlog_dump': None,
-            'runlog_log': None,
-            'user': None,
-            'verbosity': 1
-        })
+        argp = self.obj._init_argparser()  # pylint: disable=locally-disabled,protected-access
+        self.assertEqual(
+            vars(argp.parse_args(['--verbose'])),
+            {
+                'action': None,
+                'config_dir': None,
+                'config_file': None,
+                'debug': None,
+                'group': None,
+                'input': None,
+                'limit': None,
+                'log_file': None,
+                'log_level': None,
+                'name': None,
+                'pstate_dump': None,
+                'pstate_file': None,
+                'pstate_log': None,
+                'quiet': None,
+                'runlog_dir': None,
+                'runlog_dump': None,
+                'runlog_log': None,
+                'user': None,
+                'verbosity': 1
+            }
+        )
 
     def test_03_plugin(self):
         """
@@ -111,6 +117,10 @@ class TestPyzenkitBaseApp(unittest.TestCase):
         self.maxDiff = None
 
         self.obj.plugin()
+
+
+#-------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,25 +4,25 @@
 # This file is part of PyZenKit package.
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author. Later
 # it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
+
+"""
+Unit test module for testing the :py:mod:`pyzenkit.jsonconf` module.
+"""
+
+__author__ = "Honza Mach <honza.mach.ml@gmail.com>"
+
+
 import unittest
-from unittest.mock import Mock, MagicMock, call
-from pprint import pformat, pprint
 
 import os
-import sys
 import shutil
-import collections
-
-# Generate the path to custom 'lib' directory
-lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-sys.path.insert(0, lib)
 
 import pyzenkit.jsonconf
 
@@ -73,18 +73,21 @@ TEST_DATA = [
 ]
 
 class TestPyzenkitJsonconf(unittest.TestCase):
+    """
+    Unit test class for testing the :py:mod:`pyzenkit.jsonconf` module.
+    """
 
     def setUp(self):
         try:
             os.mkdir(SPOOL_DIR)
-            for t in TEST_DATA:
+            for tst in TEST_DATA:
                 pyzenkit.jsonconf.json_save(
-                    os.path.join(SPOOL_DIR, t['f']),
-                    t['d']
+                    os.path.join(SPOOL_DIR, tst['f']),
+                    tst['d']
                 )
                 pyzenkit.jsonconf.json_save(
-                    os.path.join(SPOOL_DIR, '{}.schema'.format(t['f'])),
-                    t['s']
+                    os.path.join(SPOOL_DIR, '{}.schema'.format(tst['f'])),
+                    tst['s']
                 )
         except FileExistsError:
             pass
@@ -96,9 +99,9 @@ class TestPyzenkitJsonconf(unittest.TestCase):
         Test the JSON saving.
         """
         pyzenkit.jsonconf.json_save(
-                os.path.join(SPOOL_DIR, 'save-test.json'),
-                {"x": 1, "y": 2, "z": 3}
-            )
+            os.path.join(SPOOL_DIR, 'save-test.json'),
+            {"x": 1, "y": 2, "z": 3}
+        )
         self.assertTrue(os.path.isfile(os.path.join(SPOOL_DIR, 'save-test.json')))
 
     def test_02_json_load(self):
@@ -127,7 +130,9 @@ class TestPyzenkitJsonconf(unittest.TestCase):
             schema = TEST_DATA[0]['s']
         ))
         # Test validation of invalid data structure
-        self.assertRaises(pyzenkit.jsonconf.JSONSchemaException, pyzenkit.jsonconf.config_validate,
+        self.assertRaises(
+            pyzenkit.jsonconf.JSONSchemaException,
+            pyzenkit.jsonconf.config_validate,
             {
                 "x": 1,
                 "y": 2
@@ -191,6 +196,10 @@ class TestPyzenkitJsonconf(unittest.TestCase):
         self.assertEqual(pyzenkit.jsonconf.config_load_dir(SPOOL_DIR, extension = '.json'), {"hello": 1, "world": 2})
         self.assertEqual(pyzenkit.jsonconf.config_load_dir(SPOOL_DIR, schema = SPOOL_DIR, extension = '.json'), {"hello": 1, "world": 2})
         self.assertEqual(pyzenkit.jsonconf.config_load_dir(SPOOL_DIR, schema = True, extension = '.json'), {"hello": 1, "world": 2})
+
+
+#-------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     unittest.main()

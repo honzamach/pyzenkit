@@ -4,7 +4,7 @@
 # This file is part of PyZenKit package.
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author. Later
@@ -16,12 +16,10 @@
 Unit test module for testing the :py:mod:`pyzenkit.zenscript` module.
 """
 
-
-__author__  = "Jan Mach <honza.mach.ml@gmail.com>"
+__author__ = "Honza Mach <honza.mach.ml@gmail.com>"
 
 
 import unittest
-from unittest.mock import Mock, MagicMock, call
 
 import os
 import shutil
@@ -41,7 +39,7 @@ CFG_DIR_NAME  = '/tmp/{}'.format(SCR_NAME)       # Name of the script configurat
 
 class TestPyzenkitZenScript(unittest.TestCase):
     """
-    Unit test class for testing the :py:mod:`pyzenkit.zenscript.ZenScript` class.
+    Unit test class for testing the :py:class:`pyzenkit.zenscript.ZenScript` class.
     """
 
     def setUp(self):
@@ -67,7 +65,7 @@ class TestPyzenkitZenScript(unittest.TestCase):
 
         self.obj.plugin()
 
-    def test_02_calculate_interval_thresholds(self):
+    def test_02_calc_int_thrs(self):
         """
         Perform tests of interval thresholds calculations.
         """
@@ -137,7 +135,7 @@ class TestPyzenkitZenScript(unittest.TestCase):
                 (datetime.datetime(2016, 2, 8, 12, 25), datetime.datetime(2016, 2, 8, 12, 30))
             )
 
-    def test_03_calculate_upper_threshold(self):
+    def test_03_calc_upper_thrs(self):
         """
         Perform tests of upper threshold calculations.
         """
