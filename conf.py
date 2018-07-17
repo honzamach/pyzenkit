@@ -3,7 +3,7 @@
 # This file is part of PyZenKit package.
 #
 # Copyright (C) since 2016 CESNET, z.s.p.o (http://www.ces.net/)
-# Copyright (C) since 2015 Jan Mach <honza.mach.ml@gmail.com>
+# Copyright (C) since 2015 Honza Mach <honza.mach.ml@gmail.com>
 # Use of this package is governed by the MIT license, see LICENSE file.
 #
 # This project was initially written for personal use of the original author. Later
@@ -65,8 +65,8 @@ master_doc = 'manual'
 
 # General information about the project.
 project = u'PyZenKit - Python script and daemon toolkit'
-copyright = u'since 2016, Jan Mach'
-author = u'Jan Mach'
+copyright = u'since 2016, Honza Mach'
+author = u'Honza Mach'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -154,7 +154,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'pyzenkit.tex', u'PyZenKit - Python script and daemon toolkit - Documentation',
-     u'Jan Mach', 'manual'),
+     u'Honza Mach', 'manual'),
 ]
 
 
