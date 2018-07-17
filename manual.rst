@@ -33,7 +33,7 @@ Welcome to PyZenKit's documentation!
    README
    doc/_doclib/overview
    doc/_doclib/configuration
-   doc/_doclib/api
+   doc/_doclib/apidoc/modules
 
 Indices and tables
 ================================================================================
