@@ -390,7 +390,7 @@ class ZenDaemonComponent:
         self.statistics_cur  = {}
         self.statistics_prev = {}
         self.statistics_ts   = time.time()
-        self.pattern_stats   = "{}\n\t{:15s}  {:12,d} (+{:8,d}, {:8,.2f} #/s)"
+        self.pattern_stats   = "{}\n\t{:20s}  {:>14,d} ({:>+10,d}, {:>8,.2f} #/s)"
 
     def inc_statistic(self, key, increment = 1):
         """
@@ -461,26 +461,31 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
     FLAG_CONTINUE = 1
     FLAG_STOP     = 0
 
+    # List of additional runlog keys.
+    RLKEY_STATISTICS = 'statistics'   # Daemon processing statistics.
+
     # List of event names.
     EVENT_SIGNAL_HUP     = 'signal_hup'
     EVENT_SIGNAL_USR1    = 'signal_usr1'
     EVENT_SIGNAL_USR2    = 'signal_usr2'
     EVENT_LOG_STATISTICS = 'log_statistics'
+    EVENT_SAVE_RUNLOG    = 'save_runlog'
 
     # List of core configuration keys.
     CORE_STATE      = 'state'
     CORE_STATE_SAVE = 'save'
 
     # List of configuration keys.
-    CONFIG_COMPONENTS     = 'components'
-    CONFIG_NODAEMON       = 'no_daemon'
-    CONFIG_CHROOT_DIR     = 'chroot_dir'
-    CONFIG_WORK_DIR       = 'work_dir'
-    CONFIG_PID_FILE       = 'pid_file'
-    CONFIG_STATE_FILE     = 'state_file'
-    CONFIG_UMASK          = 'umask'
-    CONFIG_STATS_INTERVAL = 'stats_interval'
-    CONFIG_PARALEL        = 'paralel'
+    CONFIG_COMPONENTS      = 'components'
+    CONFIG_NODAEMON        = 'no_daemon'
+    CONFIG_CHROOT_DIR      = 'chroot_dir'
+    CONFIG_WORK_DIR        = 'work_dir'
+    CONFIG_PID_FILE        = 'pid_file'
+    CONFIG_STATE_FILE      = 'state_file'
+    CONFIG_UMASK           = 'umask'
+    CONFIG_STATS_INTERVAL  = 'stats_interval'
+    CONFIG_RUNLOG_INTERVAL = 'runlog_interval'
+    CONFIG_PARALEL         = 'paralel'
 
 
     def __init__(self, **kwargs):
@@ -519,14 +524,15 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         :rtype: dict
         """
         cfgs = (
-            (self.CONFIG_NODAEMON,       False),
-            (self.CONFIG_CHROOT_DIR,     None),
-            (self.CONFIG_WORK_DIR,       '/'),
-            (self.CONFIG_PID_FILE,       os.path.join(self.paths.get(self.PATH_RUN), "{}.pid".format(self.name))),
-            (self.CONFIG_STATE_FILE,     os.path.join(self.paths.get(self.PATH_RUN), "{}.state".format(self.name))),
-            (self.CONFIG_UMASK,          0o002),
-            (self.CONFIG_STATS_INTERVAL, 300),
-            (self.CONFIG_PARALEL,        False),
+            (self.CONFIG_NODAEMON,        False),
+            (self.CONFIG_CHROOT_DIR,      None),
+            (self.CONFIG_WORK_DIR,        '/'),
+            (self.CONFIG_PID_FILE,        os.path.join(self.paths.get(self.PATH_RUN), "{}.pid".format(self.name))),
+            (self.CONFIG_STATE_FILE,      os.path.join(self.paths.get(self.PATH_RUN), "{}.state".format(self.name))),
+            (self.CONFIG_UMASK,           0o002),
+            (self.CONFIG_STATS_INTERVAL,  300),
+            (self.CONFIG_RUNLOG_INTERVAL, 300),
+            (self.CONFIG_PARALEL,         False),
         ) + cfgs
         return super()._init_config(cfgs, **kwargs)
 
@@ -724,7 +730,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         file.
         """
         self.logger.info("Handling event for signal 'SIGUSR1'")
-        self._utils_runlog_save(self.runlog)
+        self._utils_runlog_save(self._prepare_runlog())
         return (self.FLAG_CONTINUE, args)
 
     def cbk_event_signal_usr2(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
@@ -747,6 +753,14 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         Periodical processing statistics logging.
         """
         self.queue.schedule_after(self.c(self.CONFIG_STATS_INTERVAL), self.EVENT_LOG_STATISTICS)
+        return (self.FLAG_CONTINUE, args)
+
+    def cbk_event_save_runlog(self, daemon, args):  # pylint: disable=locally-disabled,unused-argument
+        """
+        Periodical processing statistics logging.
+        """
+        self.queue.schedule_after(self.c(self.CONFIG_RUNLOG_INTERVAL), self.EVENT_SAVE_RUNLOG)
+        self._utils_runlog_save(self._prepare_runlog())
         return (self.FLAG_CONTINUE, args)
 
     #---------------------------------------------------------------------------
@@ -820,6 +834,17 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
 
     #---------------------------------------------------------------------------
 
+    def _prepare_runlog(self, **kwargs):
+        """
+        Prepare runlog before exporting. This method allows user to append additional
+        keys or overwrite existing keys in application runlog.
+        """
+        super()._prepare_runlog(**kwargs)
+
+        # Append processing statistics to current application runlog.
+        self.runlog[self.RLKEY_STATISTICS] = self._fetch_statistics()
+
+        return self.runlog
 
     def _get_state(self):
         """
@@ -834,7 +859,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             'callbacks':      self.callbacks,
             'component_list': self.components,
             'components':     {},
-            'runlog':         self.runlog,
+            'runlog':         self._prepare_runlog(),
         }
         for component in self.components:
             state['components'][component.__class__.__name__] = component.get_state()
@@ -845,11 +870,23 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         Get current daemon statistics.
         """
         statistics = {
-            'time':           time.time(),
-            'components':     {},
+            'time':       time.time(),
+            'components': {},
         }
         for component in self.components:
             statistics['components'][component.__class__.__name__] = component.get_statistics()
+        return statistics
+
+    def _fetch_statistics(self):
+        """
+        Fetch current daemon raw processing statistics.
+        """
+        statistics = {
+            'time':       time.time(),
+            'components': {},
+        }
+        for component in self.components:
+            statistics['components'][component.__class__.__name__] = component.statistics_cur
         return statistics
 
     def _utils_state_dump(self, state):
@@ -939,6 +976,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             { 'event': self.EVENT_SIGNAL_USR1,    'callback': self.cbk_event_signal_usr1,    'prepend': False },
             { 'event': self.EVENT_SIGNAL_USR2,    'callback': self.cbk_event_signal_usr2,    'prepend': False },
             { 'event': self.EVENT_LOG_STATISTICS, 'callback': self.cbk_event_log_statistics, 'prepend': False },
+            { 'event': self.EVENT_SAVE_RUNLOG,    'callback': self.cbk_event_save_runlog,    'prepend': False }
         ]
 
     def wait(self, period):
@@ -1065,7 +1103,8 @@ class DemoDaemonComponent(ZenDaemonComponent):
         Get list of internal event callbacks.
         """
         return [
-            { 'event': 'default', 'callback': self.cbk_event_default, 'prepend': False }
+            {'event': 'default',        'callback': self.cbk_event_default,        'prepend': False},
+            {'event': 'log_statistics', 'callback': self.cbk_event_log_statistics, 'prepend': False},
         ]
 
     def cbk_event_default(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
@@ -1075,9 +1114,26 @@ class DemoDaemonComponent(ZenDaemonComponent):
         daemon.queue.schedule('default')
         daemon.logger.info("Working...")
         self.inc_statistic('cnt_default')
+        self.inc_statistic('cnt_another', 5)
         time.sleep(1)
         daemon.logger.info("Work unit done")
         return (daemon.FLAG_CONTINUE, None)
+
+    def cbk_event_log_statistics(self, daemon, args):
+        """
+        Periodical processing statistics logging.
+        """
+        stats = self.get_statistics()
+        stats_str = ''
+
+        for k in ['cnt_default', 'cnt_another']:
+            if k in stats:
+                stats_str = self.pattern_stats.format(stats_str, k, stats[k]['cnt'], stats[k]['inc'], stats[k]['spd'])
+            else:
+                stats_str = self.pattern_stats.format(stats_str, k, 0, 0, 0)
+
+        daemon.logger.info("Component '{}': *** Processing statistics ***{}".format('demo_component', stats_str))
+        return (daemon.FLAG_CONTINUE, args)
 
 
 class DemoZenDaemon(ZenDaemon):
@@ -1120,6 +1176,10 @@ class DemoZenDaemon(ZenDaemon):
             # Schedule initial daemon events.
             schedule = [
                 ('default',)
+            ],
+            schedule_after = [
+                (10, 'log_statistics'),
+                (20, 'save_runlog')
             ]
         )
 

@@ -33,6 +33,11 @@
 
     *Type:* ``integer``, *default:* ``300``
 
+``--runlog-interval interval``
+    Application runlog dump interval in seconds.
+
+    *Type:* ``integer``, *default:* ``300``
+
 ``--paralel``
     Run in paralel mode (*flag*).
 

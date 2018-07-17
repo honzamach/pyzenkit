@@ -1291,6 +1291,17 @@ class BaseApp:
     # "TEARDOWN" STAGE METHODS.
     #---------------------------------------------------------------------------
 
+    def _prepare_runlog(self, **kwargs):
+        """
+        Prepare runlog before exporting. This method allows user to append additional
+        keys or overwrite existing keys in application runlog.
+        """
+        # Save additional keys to runlog.
+        for key, value in kwargs.items():
+            self.runlog[key] = value
+
+        self.runlog[self.RLKEY_RC] = self.retc
+        return self.runlog
 
     def _stage_teardown_pstate(self):
         """
@@ -1316,11 +1327,11 @@ class BaseApp:
         Gets called from :py:func:`~BaseApp._stage_teardown`.
         """
         if self.cc(self.CORE_RUNLOG, {}).get(self.CORE_RUNLOG_SAVE):
-            self._utils_runlog_save(self.runlog)
+            self._utils_runlog_save(self._prepare_runlog())
         if self.c(self.CONFIG_RUNLOG_DUMP):
-            self._utils_runlog_dump(self.runlog)
+            self._utils_runlog_dump(self._prepare_runlog())
         if self.c(self.CONFIG_RUNLOG_LOG):
-            self._utils_runlog_log(self.runlog)
+            self._utils_runlog_log(self._prepare_runlog())
 
 
     #---------------------------------------------------------------------------
@@ -1442,7 +1453,7 @@ class BaseApp:
 
         try:
             # Perform runlog analysis.
-            analysis = self.runlog_analyze(self.runlog)
+            analysis = self.runlog_analyze(self._prepare_runlog())
 
             # Evaluate the analysis.
             self._sub_stage_evaluate(analysis)
@@ -1729,6 +1740,7 @@ class BaseApp:
         #treew = pydgets.widgets.TreeWidget()
         #self.p("\n".join(treew.render(analysis)))
 
+        self.p("")
         self._sub_runlog_format_analysis(analysis)
 
     def runlogs_evaluate(self, runlogs):
@@ -1798,8 +1810,8 @@ class BaseApp:
                 str(datetime.timedelta(seconds=evaluation[self.RLEVKEY_AVGDURPROC])),
                 evaluation[self.RLEVKEY_AVGEFFECT]
             ))
-        self.p("")
 
+        self.p("")
         self._sub_runlogs_format_evaluation(evaluation)
 
     def runlogs_list(self, **kwargs):
