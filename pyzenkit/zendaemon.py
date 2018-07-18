@@ -52,7 +52,7 @@ break the pipeline/chain by returning apropriate flag.
 
 The naming convention for event callback method is the following:
 
-* Event callback must be method, which accepts reference to :py:class:`ZenDaemon` ``daemon``
+* Event callback must be method, which accepts reference to :py:class:`pyzenkit.zendaemon.ZenDaemon` ``daemon``
   as first argument and :py:class:`dict` ``args`` as second argument.
 * Event callback method name must begin with ``cbk_event_`` prefix.
 * Event name in method name after the prefix must also be `snake_cased``.
@@ -71,10 +71,10 @@ Each daemon application has an instance of the :py:class:`EventQueueManager` as
 public attribute, which represents the event queue. There are following methods
 available for scheduling events into the queue:
 
-* End of the queue: :py:func:`EventQueueManager.schedule`
-* Beginning of the queue: :py:func:`EventQueueManager.schedule_next`
-* After certain time interval: :py:func:`EventQueueManager.schedule_after`
-* At specific time: :py:func:`EventQueueManager.schedule_at`
+* End of the queue: :py:func:`pyzenkit.zendaemon.EventQueueManager.schedule`
+* Beginning of the queue: :py:func:`pyzenkit.zendaemon.EventQueueManager.schedule_next`
+* After certain time interval: :py:func:`pyzenkit.zendaemon.EventQueueManager.schedule_after`
+* At specific time: :py:func:`pyzenkit.zendaemon.EventQueueManager.schedule_at`
 
 
 Signal handling
@@ -83,11 +83,26 @@ Signal handling
 Each daemon service should be capable of receiving and handling external signals.
 Currently support for following signals is built-in:
 
-SIGINT
-    Stop the infinite event loop and exit the application.
-
 SIGHUP
     Reload configuration and reconfigure the application.
+
+    .. note::
+
+        This feature is not yet fully implemented.
+
+SIGINT
+    Finish up all current work and attempt to perform gracefull stop. In case you
+    send this signal multiple times (currently the magical number is three), you
+    will force the event loop to be exited prematurelly. This feature can be usefull
+    in case you are shutting the daemon down by hand and the shutdown process takes
+    too long to complete. Another fail-safe is a built-in shutdown timeout (currently
+    set to 30 seconds). After the given time period all attempts to shutdown gracefully
+    are abandoned and daemon terminates immediatelly.
+
+SIGTERM
+    This is more aggresive version of daemon shutdown process. In this case the
+    processing is terminated immediatelly, but there is a high chance some events
+    will be left unprocessed.
 
 SIGUSR1
     Save current application runlog to JSON file.
@@ -99,24 +114,37 @@ SIGUSR2
 Signals are catched by the daemon engine, transformed into high priority events and
 these are then handled ASAP with following built-in event callbacks:
 
-* :py:func:`ZenDaemon.cbk_event_signal_hup`
-* :py:func:`ZenDaemon.cbk_event_signal_usr1`
-* :py:func:`ZenDaemon.cbk_event_signal_usr2`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_signal_hup`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_signal_int`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_signal_usr1`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_signal_usr2`
 
 There are following built-in application actions, that can be used to send particular
 signal to apropriate running daemon:
 
-* :py:func:`ZenDaemon.cbk_action_signal_alrm`
-* :py:func:`ZenDaemon.cbk_action_signal_check`
-* :py:func:`ZenDaemon.cbk_action_signal_hup`
-* :py:func:`ZenDaemon.cbk_action_signal_int`
-* :py:func:`ZenDaemon.cbk_action_signal_usr1`
-* :py:func:`ZenDaemon.cbk_action_signal_usr2`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_action_signal_alrm`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_action_signal_check`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_action_signal_hup`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_action_signal_int`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_action_signal_term`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_action_signal_usr1`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_action_signal_usr2`
 
-These actions may be executed in a following way::
+These signal actions may be executed in a following way::
 
     path/to/zendaemon.py --action signal-usr1
     path/to/zendaemon.py --action=signal-usr2
+
+There are following built-in events that may be used by daemon components to perform
+some additional processing:
+
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_signal_hup`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_signal_usr1`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_signal_usr2`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_log_statistics`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_save_runlog`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_stop`
+* :py:func:`pyzenkit.zendaemon.ZenDaemon.cbk_event_terminate`
 
 
 Daemon components
@@ -139,27 +167,33 @@ additional functionality on top of that.
 Module contents
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* :py:class:`QueueEmptyException`
-* :py:class:`ZenDaemonComponentException`
-* :py:class:`ZenDaemonException`
-* :py:class:`EventQueueManager`
-* :py:class:`ZenDaemonComponent`
-* :py:class:`ZenDaemon`
-* :py:class:`DemoZenDaemonComponent`
-* :py:class:`DemoZenDaemon`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.QueueEmptyException`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.ZenDaemonComponentException`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.ZenDaemonException`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.ZenDaemonStopException`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.EventQueueManager`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.ZenDaemonComponent`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.ZenDaemon`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.DemoZenDaemonComponent`
+* :py:class:`pyzenkit.zendaemon.ZenDaemon.DemoZenDaemon`
 
 
 Programming API
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. note::
+
+    Work in progress.
+
 * public attributes:
 
-    * :py:attr:`ZenDaemon.queue` - Event queue.
+    * :py:attr:`pyzenkit.zendaemon.ZenDaemon.queue` - Event queue.
 
 * public methods:
 
-    * :py:func:`ZenDaemon.done` - Stop the infinite event loop and exit the application.
-    * :py:func:`ZenDaemon.wait` - Pause the processing for given amount of time.
+    * :py:func:`pyzenkit.zendaemon.ZenDaemon.set_done` - Attempt to gracefull application shutdown.
+    * :py:func:`pyzenkit.zendaemon.ZenDaemon.is_done` - Check whether the application is in gracefull shutdown process.
+    * :py:func:`pyzenkit.zendaemon.ZenDaemon.wait` - Pause the processing for given amount of time.
 """
 
 __author__  = "Honza Mach <honza.mach.ml@gmail.com>"
@@ -186,9 +220,22 @@ import pyzenkit.baseapp
 import pyzenkit.daemonizer
 
 
-# Translation table to translate signal numbers to their names.
 SIGNALS_TO_NAMES_DICT = dict((getattr(signal, n), n) \
     for n in dir(signal) if n.startswith('SIG') and '_' not in n )
+"""
+Translation table to translate signal numbers to their names.
+"""
+
+MAX_STOP_ATTEMPTS = 3
+"""
+Maximal number of daemon stop attempts using ``SIGINT``. After this number the
+daemon will exit the event processing loop immediatelly.
+"""
+
+MAX_STOP_TIMEOUT = 30
+"""
+Maximal number of seconds to wait for gracefull shutdown.
+"""
 
 
 def _json_default(obj):
@@ -446,6 +493,12 @@ class ZenDaemonException(pyzenkit.baseapp.ZenAppProcessException):
     """
     pass
 
+class ZenDaemonStopException(BaseException):
+    """
+    Exception that is raised when daemon should stop gracefully but immediatelly.
+    """
+    pass
+
 
 class ZenDaemon(pyzenkit.baseapp.BaseApp):
     """
@@ -469,6 +522,8 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
     EVENT_SIGNAL_USR2    = 'signal_usr2'
     EVENT_LOG_STATISTICS = 'log_statistics'
     EVENT_SAVE_RUNLOG    = 'save_runlog'
+    EVENT_STOP           = 'stop'
+    EVENT_TERMINATE      = 'terminate'
 
     # List of core configuration keys.
     CORE_STATE      = 'state'
@@ -500,10 +555,10 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         super().__init__(**kwargs)
 
-        self.flag_done  = False
-        self.queue      = EventQueueManager()
-        self.components = []
-        self.callbacks  = {}
+        self.flag_loop_done = 0
+        self.queue          = EventQueueManager()
+        self.components     = []
+        self.callbacks      = {}
 
         self._init_callbacks(**kwargs)
         self._init_components(**kwargs)
@@ -685,6 +740,24 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.logger.warning("Received signal 'SIGHUP' (%s)", signum)
         self.queue.schedule_next(self.EVENT_SIGNAL_HUP)
 
+    def _hnd_signal_int(self, signum, frame):  # pylint: disable=locally-disabled,unused-argument
+        """
+        Signal handler - **SIGINT**
+
+        Implementation of the handler is intentionally brief, actual signal
+        handling is done via scheduling and handling event ``stop``.
+        """
+        self.logger.warning("Received signal 'SIGINT' (%s)", signum)
+        self.flag_loop_done += 1
+        self.queue.schedule_next(self.EVENT_STOP)
+
+    def _hnd_signal_term(self, signum, frame):  # pylint: disable=locally-disabled,unused-argument
+        """
+        Signal handler - **SIGTERM**
+        """
+        self.logger.warning("Received signal 'SIGTERM' (%s)", signum)
+        raise ZenDaemonStopException("Daemon processing termination forced by signal.")
+
     def _hnd_signal_usr1(self, signum, frame):  # pylint: disable=locally-disabled,unused-argument
         """
         Signal handler - **SIGUSR1**
@@ -721,6 +794,16 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.logger.warning("Handling event for signal 'SIGHUP'")
         return (self.FLAG_CONTINUE, args)
 
+    def cbk_event_signal_int(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
+        """
+        Event callback for handling signal - **SIGINT**
+
+        This signal forces the daemon process to finish all its current work and
+        stop gracefully.
+        """
+        self.logger.warning("Handling event for signal 'SIGINT'")
+        return (self.FLAG_CONTINUE, args)
+
     def cbk_event_signal_usr1(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
         """
         Event callback for handling signal - **SIGUSR1**
@@ -741,26 +824,40 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         internal data.
         """
         self.logger.info("Handling event for signal 'SIGUSR2'")
-        if self.c(self.CONFIG_NODAEMON):
-            self._utils_state_dump(self._get_state())
-        else:
-            self._utils_state_save(self._get_state())
+        self._utils_state_save(self._get_state())
         return (self.FLAG_CONTINUE, args)
 
     def cbk_event_log_statistics(self, daemon, args):  # pylint: disable=locally-disabled,unused-argument
         """
         Periodical processing statistics logging.
         """
-        self.queue.schedule_after(self.c(self.CONFIG_STATS_INTERVAL), self.EVENT_LOG_STATISTICS)
+        if not self.flag_loop_done:
+            self.queue.schedule_after(self.c(self.CONFIG_STATS_INTERVAL), self.EVENT_LOG_STATISTICS)
         return (self.FLAG_CONTINUE, args)
 
     def cbk_event_save_runlog(self, daemon, args):  # pylint: disable=locally-disabled,unused-argument
         """
-        Periodical processing statistics logging.
+        Periodical runlog dumps to enable performance monitoring.
         """
-        self.queue.schedule_after(self.c(self.CONFIG_RUNLOG_INTERVAL), self.EVENT_SAVE_RUNLOG)
+        if not self.flag_loop_done:
+            self.queue.schedule_after(self.c(self.CONFIG_RUNLOG_INTERVAL), self.EVENT_SAVE_RUNLOG)
         self._utils_runlog_save(self._prepare_runlog())
         return (self.FLAG_CONTINUE, args)
+
+    def cbk_event_stop(self, daemon, args):  # pylint: disable=locally-disabled,unused-argument
+        """
+        Gracefully stop daemon processing. This event handler also schedules the
+        ``terminate`` event after the :py:attr:`pyzenkit.zendaemon.MAX_STOP_TIMEOUT`
+        seconds as a failsafe to force daemon process to quit.
+        """
+        self.queue.schedule_after(MAX_STOP_TIMEOUT, self.EVENT_TERMINATE)
+        return (self.FLAG_CONTINUE, args)
+
+    def cbk_event_terminate(self, daemon, args):  # pylint: disable=locally-disabled,unused-argument
+        """
+        Gracefully stop daemon processing.
+        """
+        raise ZenDaemonStopException("Daemon processing termination forced by timeout.")
 
     #---------------------------------------------------------------------------
 
@@ -806,17 +903,23 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         self.send_signal(signal.SIGALRM)
 
+    def cbk_action_signal_hup(self):
+        """
+        Send signal 'SIGHUP' to currently running daemon.
+        """
+        self.send_signal(signal.SIGHUP)
+
     def cbk_action_signal_int(self):
         """
         Send signal 'SIGINT' to currently running daemon.
         """
         self.send_signal(signal.SIGINT)
 
-    def cbk_action_signal_hup(self):
+    def cbk_action_signal_term(self):
         """
-        Send signal 'SIGHUP' to currently running daemon.
+        Send signal 'SIGTERM' to currently running daemon.
         """
-        self.send_signal(signal.SIGHUP)
+        self.send_signal(signal.SIGTERM)
 
     def cbk_action_signal_usr1(self):
         """
@@ -975,7 +1078,9 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             { 'event': self.EVENT_SIGNAL_USR1,    'callback': self.cbk_event_signal_usr1,    'prepend': False },
             { 'event': self.EVENT_SIGNAL_USR2,    'callback': self.cbk_event_signal_usr2,    'prepend': False },
             { 'event': self.EVENT_LOG_STATISTICS, 'callback': self.cbk_event_log_statistics, 'prepend': False },
-            { 'event': self.EVENT_SAVE_RUNLOG,    'callback': self.cbk_event_save_runlog,    'prepend': False }
+            { 'event': self.EVENT_SAVE_RUNLOG,    'callback': self.cbk_event_save_runlog,    'prepend': False },
+            { 'event': self.EVENT_STOP,           'callback': self.cbk_event_stop,           'prepend': False },
+            { 'event': self.EVENT_TERMINATE,      'callback': self.cbk_event_terminate,      'prepend': False },
         ]
 
     def wait(self, period):
@@ -990,11 +1095,17 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             signal.pause()
             signal.alarm(0)
 
-    def done(self):
+    def set_done(self):
         """
         Set the DONE flag to True.
         """
-        self.flag_done = True
+        self.flag_loop_done += 1
+
+    def is_done(self):
+        """
+        Check if the daemon .
+        """
+        return self.flag_loop_done > 0
 
     def _daemonize(self):
         """
@@ -1014,6 +1125,8 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
                 files_preserve = logs,
                 signals        = {
                     signal.SIGHUP:  self._hnd_signal_hup,
+                    signal.SIGINT:  self._hnd_signal_int,
+                    signal.SIGTERM: self._hnd_signal_term,
                     signal.SIGUSR1: self._hnd_signal_usr1,
                     signal.SIGUSR2: self._hnd_signal_usr2,
                 },
@@ -1034,6 +1147,8 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
                 umask          = self.c(self.CONFIG_UMASK),
                 signals        = {
                     signal.SIGHUP:  self._hnd_signal_hup,
+                    signal.SIGINT:  self._hnd_signal_int,
+                    signal.SIGTERM: self._hnd_signal_term,
                     signal.SIGUSR1: self._hnd_signal_usr1,
                     signal.SIGUSR2: self._hnd_signal_usr2,
                 },
@@ -1046,25 +1161,25 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         Main event processing loop.
         """
-        self.flag_done = False
-        while not self.flag_done:
-            try:
-                (event, args) = self.queue.next()
-                if event:
-                    if event not in self.callbacks:
-                        raise ZenDaemonException("There is no callback to handle event '{}'".format(event))
-                    for handler in self.callbacks[event]:
-                        (flag, args) = handler(self, args)
-                        if flag != self.FLAG_CONTINUE:
-                            break
+        self.flag_loop_done = 0
+        while self.flag_loop_done < MAX_STOP_ATTEMPTS:
+            (event, args) = self.queue.next()
+            if event:
+                if event not in self.callbacks:
+                    raise ZenDaemonException("There is no callback to handle event '{}'".format(event))
+                for handler in self.callbacks[event]:
+                    (flag, args) = handler(self, args)
+                    if flag != self.FLAG_CONTINUE:
+                        break
+            else:
+                wait_time = self.queue.wait()
+                if not self.flag_loop_done and wait_time > 0:
+                    self.wait(wait_time)
                 else:
-                    wait_time = self.queue.wait()
-                    if wait_time > 0:
-                        self.wait(wait_time)
+                    raise ZenDaemonStopException("Daemon processing termination forced by empty queue, will not wait for time scheduled events.")
 
-            except QueueEmptyException:
-                self.logger.info("Event queue is empty, terminating")
-                self.flag_done = True
+        raise ZenDaemonStopException("Daemon processing termination forced by repeated interruption signals.")
+
 
     def _sub_stage_process(self):
         """
@@ -1075,8 +1190,11 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             self._daemonize()
             self._event_loop()
 
-        except KeyboardInterrupt:
-            pass
+        except QueueEmptyException:
+            self.logger.info("Event queue is empty, terminating")
+
+        except ZenDaemonStopException as err:
+            self.logger.info(str(err))
 
         except subprocess.CalledProcessError as err:
             self.error("System command error: {}".format(err))
@@ -1108,14 +1226,32 @@ class DemoDaemonComponent(ZenDaemonComponent):
 
     def cbk_event_default(self, daemon, args = None):  # pylint: disable=locally-disabled,unused-argument
         """
-        Callback handler for default event.
+        Callback handler for **default** demonstration event.
         """
-        daemon.queue.schedule('default')
+        #
+        # When you are scheduling new events, you should check for the daemon.is_done()
+        # flag to detect whether daemon is shutting down. If the new scheduled
+        # event represents new work unit, you should not schedule it to enable
+        # daemon just to finish all current work and shutdown gracefully.
+        #
+        if not daemon.is_done():
+            daemon.queue.schedule('default')
+
+        # Some demonstration log output.
+        daemon.logger.debug("Working...")
         daemon.logger.info("Working...")
+        daemon.logger.warning("Working...")
+        daemon.logger.critical("Working...")
+
+        # Update some example statistics to see some output.
         self.inc_statistic('cnt_default')
         self.inc_statistic('cnt_another', 5)
+
+        # Do some actual work.
         time.sleep(1)
-        daemon.logger.info("Work unit done")
+        daemon.logger.info("Work unit done.")
+
+        # Let other possible daemon modules in processing chain do their thing.
         return (daemon.FLAG_CONTINUE, None)
 
     def cbk_event_log_statistics(self, daemon, args):
