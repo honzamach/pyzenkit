@@ -126,9 +126,9 @@ deps-python: FORCE
 
 docs: docs-html
 
-docs-apidoc: $(LIB_FILES)
+docs-apidoc: FORCE
 	@echo "\n${GREEN}*** Autogenerating project API documentation ***${NC}\n"
-	@$(SPHINXAPIDOC) -f -e -o $(SPHINXAPIDIR) $(DIR_LIB)
+	@$(SPHINXAPIDOC) -e -o $(SPHINXAPIDIR) $(DIR_LIB)
 
 docs-help: FORCE
 	@$(SPHINXBUILD) -M help "$(SPHINXSOURCEDIR)" "$(SPHINXBUILDDIR)" $(SPHINXOPTS) $(O)
