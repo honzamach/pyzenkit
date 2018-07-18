@@ -5,6 +5,15 @@
 # Use of this source is governed by the MIT license, see LICENSE file.
 #-------------------------------------------------------------------------------
 
+
+"""
+.. warning::
+
+    This module is under development, please do not use it yet.
+
+"""
+
+
 from pyzenkit.zencli import ZenCLIModule
 
 VERSION = "0.1-beta1"

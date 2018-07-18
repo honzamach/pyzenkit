@@ -16,6 +16,14 @@
 #-------------------------------------------------------------------------------
 
 
+"""
+.. warning::
+
+    This module is under development, please do not use it yet.
+
+"""
+
+
 import sys
 import pkgutil
 import argparse
