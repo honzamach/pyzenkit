@@ -24,6 +24,11 @@ SPHINXBUILDDIR    = doc/_build
 SPHINXAPIDIR      = doc/_doclib/apidoc
 SPHINXAPIDOCFILES = $(SPHINXAPIDIR)/$(SPHINXPROJ).rst $(SPHINXAPIDIR)/modules.rst
 
+PYTHON    = python3
+PIP       = pip3
+NOSETESTS = nosetests
+TWINE     = twine
+
 #
 # Color code definitions for colored terminal output
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
@@ -71,9 +76,9 @@ check: pyflakes pylint test
 
 help:
 	@echo ""
-	@echo " ${GREEN}─────────────────────────────────────────────────${NC}"
-	@echo " ${GREEN}              LIST OF MAKE TARGETS${NC}"
-	@echo " ${GREEN}─────────────────────────────────────────────────${NC}"
+	@echo " ${GREEN}────────────────────────────────────────────────────────────────────────────────${NC}"
+	@echo " ${GREEN}                          LIST AVAILABLE OF MAKE TARGETS${NC}"
+	@echo " ${GREEN}────────────────────────────────────────────────────────────────────────────────${NC}"
 	@echo ""
 	@echo "  * ${GREEN}default${NC}: alias for help, you have to pick a target"
 	@echo "  * ${GREEN}help${NC}: print this help and exit"
@@ -100,7 +105,7 @@ help:
 	@echo "  * ${GREEN}install${NC}: install distribution on local machine"
 	@echo "  * ${GREEN}deploy${NC}:  deploy to PyPI"
 	@echo ""
-	@echo " ${GREEN}─────────────────────────────────────────────────${NC}"
+	@echo " ${GREEN}────────────────────────────────────────────────────────────────────────────────${NC}"
 	@echo ""
 
 
@@ -108,7 +113,7 @@ help:
 
 
 show-version: FORCE
-	@PYTHONPATH=. python3 -c "import pyzenkit; print(pyzenkit.__version__);"
+	@PYTHONPATH=. $(PYTHON) -c "import pyzenkit; print(pyzenkit.__version__);"
 
 
 #-------------------------------------------------------------------------------
@@ -118,7 +123,7 @@ deps: deps-python
 
 deps-python: FORCE
 	@echo "\n${GREEN}*** Installing Python dependencies ***${NC}\n"
-	@pip3 install -r requirements.pip --upgrade
+	@$(PIP) install -r requirements.pip --upgrade
 
 
 #-------------------------------------------------------------------------------
@@ -145,25 +150,33 @@ pyflakes: pyflakes-lib pyflakes-test
 
 pyflakes-lib: FORCE
 	@echo "\n${GREEN}*** Checking code with pyflakes ***${NC}\n"
-	-@python3 -m pyflakes $(DIR_LIB)/*.py
+	@$(PYTHON) --version
+	@echo ""
+	-@$(PYTHON) -m pyflakes $(DIR_LIB)/*.py
 
 pyflakes-test: FORCE
 	@echo "\n${GREEN}*** Checking test files with pyflakes ***${NC}\n"
-	-@python3 -m pyflakes $(DIR_LIB)/tests/*.py
+	@$(PYTHON) --version
+	@echo ""
+	-@$(PYTHON) -m pyflakes $(DIR_LIB)/tests/*.py
 
 pylint: pylint-lib pylint-test
 
 pylint-lib: FORCE
 	@echo "\n${GREEN}*** Checking code with pylint ***${NC}\n"
-	-@python3 -m pylint $(DIR_LIB)/*.py --rcfile .pylintrc-lib
+	@$(PYTHON) --version
+	@echo ""
+	-@$(PYTHON) -m pylint $(DIR_LIB)/*.py --rcfile .pylintrc-lib
 
 pylint-test: FORCE
 	@echo "\n${GREEN}*** Checking test files with pylint ***${NC}\n"
-	-@python3 -m pylint $(DIR_LIB)/tests/*.py --rcfile .pylintrc-test
+	@$(PYTHON) --version
+	@echo ""
+	-@$(PYTHON) -m pylint $(DIR_LIB)/tests/*.py --rcfile .pylintrc-test
 
 test: FORCE
 	@echo "\n${GREEN}*** Checking code with nosetests ***${NC}\n"
-	@nosetests
+	@$(NOSETESTS)
 
 
 #-------------------------------------------------------------------------------
@@ -177,15 +190,17 @@ archive: FORCE
 
 bdist: FORCE
 	@echo "\n${GREEN}*** Building Python packages ***${NC}\n"
-	@python3 setup.py sdist bdist_wheel
+	@$(PYTHON) --version
+	@echo ""
+	@$(PYTHON) setup.py sdist bdist_wheel
 
 install: FORCE
 	@echo "\n${GREEN}*** Performing local installation ***${NC}\n"
-	@pip3 install dist/pyzenkit*.whl --upgrade
+	@$(PIP) install dist/pyzenkit*.whl --upgrade
 
 deploy: FORCE
 	@echo "\n${GREEN}*** Deploying packages to PyPI ***${NC}\n"
-	@twine upload dist/* --skip-existing
+	@$(TWINE) upload dist/* --skip-existing
 
 # Empty rule as dependency will force make to always perform target
 # Source: https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
