@@ -90,7 +90,9 @@ class TestPyzenkitBaseApp(unittest.TestCase):
             {
                 'action': None,
                 'config_dir': None,
+                'config_dir_silent': None,
                 'config_file': None,
+                'config_file_silent': None,
                 'debug': None,
                 'group': None,
                 'input': None,

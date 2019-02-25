@@ -110,7 +110,7 @@ class TestPyzenkitJsonconf(unittest.TestCase):
         """
         # Attempt to load missing JSON file
         self.assertRaises(FileNotFoundError, pyzenkit.jsonconf.json_load, os.path.join(SPOOL_DIR, 'bogus.json'))
-        self.assertEqual(pyzenkit.jsonconf.json_load(os.path.join(SPOOL_DIR, 'bogus.json'), silent = True), None)
+        self.assertEqual(pyzenkit.jsonconf.json_load(os.path.join(SPOOL_DIR, 'bogus.json'), silent = True), {})
 
         # Attempt to load existing JSON files
         self.assertEqual(pyzenkit.jsonconf.json_load(os.path.join(SPOOL_DIR, 'a.json.conf')), {"x": 1, "y": 2, "z": 3})
@@ -147,7 +147,7 @@ class TestPyzenkitJsonconf(unittest.TestCase):
         """
         # Attempt to load missing JSON config file
         self.assertRaises(FileNotFoundError, pyzenkit.jsonconf.config_load, os.path.join(SPOOL_DIR, 'bogus.json'))
-        self.assertEqual(pyzenkit.jsonconf.config_load(os.path.join(SPOOL_DIR, 'bogus.json'), silent = True), None)
+        self.assertEqual(pyzenkit.jsonconf.config_load(os.path.join(SPOOL_DIR, 'bogus.json'), silent = True), {})
 
         # Attempt to load existing JSON config files
         self.assertEqual(pyzenkit.jsonconf.config_load(os.path.join(SPOOL_DIR, 'a.json.conf'), ), {"x": 1, "y": 2, "z": 3})
