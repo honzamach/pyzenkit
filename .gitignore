@@ -23,6 +23,7 @@
 __pycache__
 
 # Package building related folders.
+/chroot/
 /archive/pyzenkit*
 /build/
 /dist/pyzenkit*
