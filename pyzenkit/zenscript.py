@@ -203,8 +203,7 @@ def t_datetime(val):
         zonespl = (0, 0) if zonestr in ['z', 'Z'] else [int(i) for i in zonestr.split(':')]
         zonediff = datetime.timedelta(minutes = zonespl[0]*60+zonespl[1])
         return datetime.datetime(year, month, day, hour, minute, second, us_int) - zonediff
-    else:
-        raise ValueError("Invalid datetime '{:s}'".format(val))
+    raise ValueError("Invalid datetime '{:s}'".format(val))
 
 
 #-------------------------------------------------------------------------------
@@ -214,7 +213,6 @@ class ZenScriptException(pyzenkit.baseapp.ZenAppProcessException):
     """
     Describes problems specific to scripts.
     """
-    pass
 
 
 #-------------------------------------------------------------------------------

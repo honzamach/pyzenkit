@@ -166,8 +166,8 @@ def _setup_pf(pid_file):
             except:  # pylint: disable=locally-disabled,bare-except
                 pass
         return (pid, pid_file)
-    else:
-        return (pid, None)
+    return (pid, None)
+
 
 #-------------------------------------------------------------------------------
 

@@ -409,25 +409,21 @@ class ZenAppSetupException(ZenAppException):
     """
     Describes problems or errors that occur during the **setup** phase.
     """
-    pass
 
 class ZenAppProcessException(ZenAppException):
     """
     Describes problems or errors that occur during the **process** phase.
     """
-    pass
 
 class ZenAppEvaluateException(ZenAppException):
     """
     Describes problems or errors that occur during the **evaluate** phase.
     """
-    pass
 
 class ZenAppTeardownException(ZenAppException):
     """
     Describes problems or errors that occur during the **teardown** phase.
     """
-    pass
 
 
 #-------------------------------------------------------------------------------
@@ -888,7 +884,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
 
         :param kwargs: Various additional parameters passed down from constructor.
         """
-        pass
 
     def _sub_stage_setup(self):
         """
@@ -896,7 +891,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
 
         Gets called from :py:func:`~BaseApp._stage_setup` and it is a **SETUP SUBSTAGE 06**.
         """
-        pass
 
     def _sub_stage_process(self):
         """
@@ -926,7 +920,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
 
         Gets called from :py:func:`~BaseApp._stage_teardown` and it is a **TEARDOWN SUBSTAGE 01**.
         """
-        pass
 
     def _sub_runlog_analyze(self, runlog, analysis):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
@@ -938,7 +931,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         """
         **SUBCLASS HOOK**: Format given runlog analysis.
         """
-        pass
 
     def _sub_runlogs_evaluate(self, runlogs, evaluation):  # pylint: disable=locally-disabled,no-self-use,unused-argument
         """
@@ -950,7 +942,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         """
         **SUBCLASS HOOK**: Format given runlogs evaluation.
         """
-        pass
 
 
     #---------------------------------------------------------------------------
@@ -1145,7 +1136,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
 
             Missing implementation, work in progress.
         """
-        pass
 
     #---------------------------------------------------------------------------
     # "SETUP" STAGE METHODS.

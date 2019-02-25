@@ -419,7 +419,6 @@ class ZenDaemonComponentException(pyzenkit.baseapp.ZenAppProcessException):
     """
     Describes problems specific to daemon components.
     """
-    pass
 
 
 class ZenDaemonComponent:
@@ -475,13 +474,11 @@ class ZenDaemonComponent:
         """
         Perform component setup.
         """
-        pass
 
     def setup_dump(self, daemon):
         """
         Dump component setup.
         """
-        pass
 
 
 #-------------------------------------------------------------------------------
@@ -491,13 +488,11 @@ class ZenDaemonException(pyzenkit.baseapp.ZenAppProcessException):
     """
     Describes problems specific to daemons.
     """
-    pass
 
 class ZenDaemonStopException(BaseException):
     """
     Exception that is raised when daemon should stop gracefully but immediatelly.
     """
-    pass
 
 
 class ZenDaemon(pyzenkit.baseapp.BaseApp):
@@ -857,6 +852,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         """
         Gracefully stop daemon processing.
         """
+        self.logger.warning("Forcefully terminating the application")
         raise ZenDaemonStopException("Daemon processing termination forced by timeout.")
 
     #---------------------------------------------------------------------------
@@ -1275,14 +1271,17 @@ class DemoZenDaemon(ZenDaemon):
     """
     Minimalistic class for demonstration purposes.
     """
+    DEMO_INTERVAL_STATS  = 5
+    DEMO_INTERVAL_RUNLOG = 10
+
     def __init__(self, name = None, description = None):
         """
-        Initialize demonstration script. This method overrides the base
+        Initialize demonstration daemon. This method overrides the base
         implementation in :py:func:`baseapp.BaseApp.__init__` and it aims to
-        even more simplify the script object creation.
+        even more simplify the daemon object creation.
 
-        :param str name: Optional script name.
-        :param str description: Optional script description.
+        :param str name: Optional daemon name.
+        :param str description: Optional daemon description.
         """
         name        = 'demo-zendaemon.py' if not name else name
         description = 'DemoZenDaemon - Demonstration daemon' if not description else description
@@ -1304,6 +1303,9 @@ class DemoZenDaemon(ZenDaemon):
             # Force the demonstration daemon to stay in foreground.
             default_no_daemon = True,
 
+            default_stats_interval  = self.DEMO_INTERVAL_STATS,
+            default_runlog_interval = self.DEMO_INTERVAL_RUNLOG,
+
             # Define internal daemon components.
             components = [
                 DemoDaemonComponent()
@@ -1314,8 +1316,8 @@ class DemoZenDaemon(ZenDaemon):
                 ('default',)
             ],
             schedule_after = [
-                (10, 'log_statistics'),
-                (20, 'save_runlog')
+                (self.DEMO_INTERVAL_STATS,  self.EVENT_LOG_STATISTICS),
+                (self.DEMO_INTERVAL_RUNLOG, self.EVENT_SAVE_RUNLOG)
             ]
         )
 
