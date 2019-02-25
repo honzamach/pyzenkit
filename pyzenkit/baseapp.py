@@ -546,6 +546,8 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
     CONFIG_GROUP       = 'group'
     CONFIG_CFG_FILE    = 'config_file'
     CONFIG_CFG_DIR     = 'config_dir'
+    CONFIG_CFG_FILE_S  = 'config_file_silent'
+    CONFIG_CFG_DIR_S   = 'config_dir_silent'
     CONFIG_LOG_FILE    = 'log_file'
     CONFIG_LOG_LEVEL   = 'log_level'
     CONFIG_PSTATE_FILE = 'pstate_file'
@@ -712,6 +714,9 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         arggroup_common.add_argument('--user',  help = 'process UID or user name', default = None)
         arggroup_common.add_argument('--group', help = 'process GID or group name', default = None)
 
+        arggroup_common.add_argument('--config-file-silent', help = 'silently ignore missing configuration file (flag)', action = 'store_true', default = None)
+        arggroup_common.add_argument('--config-dir-silent',  help = 'silently ignore missing configuration directory (flag)', action = 'store_true', default = None)
+
         arggroup_common.add_argument('--config-file', help = 'path to the configuration file', type = str, default = None)
         arggroup_common.add_argument('--config-dir',  help = 'path to the configuration directory', type = str, default = None)
         arggroup_common.add_argument('--log-file',    help = 'path to the log file', type = str, default = None)
@@ -856,6 +861,8 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
             (self.CONFIG_GROUP,       None),
             (self.CONFIG_CFG_FILE,    os.path.join(self.paths[self.PATH_CFG], "{}.conf".format(self.name))),
             (self.CONFIG_CFG_DIR,     os.path.join(self.paths[self.PATH_CFG], "{}".format(self.name))),
+            (self.CONFIG_CFG_FILE_S,  False),
+            (self.CONFIG_CFG_DIR_S,   False),
             (self.CONFIG_LOG_FILE,    os.path.join(self.paths[self.PATH_LOG], "{}.log".format(self.name))),
             (self.CONFIG_LOG_LEVEL,   'info'),
             (self.CONFIG_PSTATE_FILE, os.path.join(self.paths[self.PATH_RUN], "{}.pstate".format(self.name))),
@@ -963,17 +970,19 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         Gets called from :py:func:`~BaseApp._stage_setup_configuration` and is
         therefore part of **SETUP** stage.
         """
-        # IMPORTANT! Immediatelly rewrite the default value for configuration file
-        # names, if the value was received as command line argument.
-        if self._config_cli[self.CONFIG_CFG_FILE] is not None:
-            self.config[self.CONFIG_CFG_FILE] = self._config_cli[self.CONFIG_CFG_FILE]
-            self.dbgout("Config file name overridden from '{}' to '{}' by command line option".format(self.config[self.CONFIG_CFG_FILE], self._config_cli[self.CONFIG_CFG_FILE]))
 
-        # IMPORTANT! Immediatelly rewrite the default value for configuration file
-        # names, if the value was received as command line argument.
-        if self._config_cli[self.CONFIG_CFG_DIR] is not None:
-            self.config[self.CONFIG_CFG_DIR] = self._config_cli[self.CONFIG_CFG_DIR]
-            self.dbgout("Config directory name overridden from '{}' to '{}' by command line option".format(self.config[self.CONFIG_CFG_DIR], self._config_cli[self.CONFIG_CFG_DIR]))
+        # IMPORTANT! Immediatelly apply some configuration values to alter further
+        # configuration loading.
+        for cfgkey in (self.CONFIG_CFG_FILE, self.CONFIG_CFG_DIR, self.CONFIG_CFG_FILE_S, self.CONFIG_CFG_DIR_S):
+            if self._config_cli.get(cfgkey, None) is not None:
+                self.dbgout(
+                    "Configuration '{}' overridden from '{}' to '{}' by command line option.".format(
+                        cfgkey,
+                        self.config[cfgkey],
+                        self._config_cli[cfgkey]
+                    )
+                )
+                self.config[cfgkey] = self._config_cli[cfgkey]
 
     def _configure_from_file(self):
         """
@@ -986,7 +995,10 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         therefore part of **SETUP** stage.
         """
         try:
-            self._config_file = pyzenkit.jsonconf.config_load(self.c(self.CONFIG_CFG_FILE))
+            self._config_file = pyzenkit.jsonconf.config_load(
+                self.c(self.CONFIG_CFG_FILE),
+                silent = self.c(self.CONFIG_CFG_FILE_S)
+            )
             self.dbgout("Loaded contents of configuration file '{}'".format(self.c(self.CONFIG_CFG_FILE)))
 
         except FileNotFoundError:
@@ -1003,7 +1015,10 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         therefore part of **SETUP** stage.
         """
         try:
-            self._config_dir = pyzenkit.jsonconf.config_load_dir(self.c(self.CONFIG_CFG_DIR))
+            self._config_dir = pyzenkit.jsonconf.config_load_dir(
+                self.c(self.CONFIG_CFG_DIR),
+                silent = self.c(self.CONFIG_CFG_DIR_S)
+            )
             self.dbgout("Loaded contents of configuration directory '{}'".format(self.c(self.CONFIG_CFG_DIR)))
 
         except FileNotFoundError:

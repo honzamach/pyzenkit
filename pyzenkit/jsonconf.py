@@ -156,9 +156,8 @@ def json_load(json_file, silent = False):
 
     except FileNotFoundError:
         if silent:
-            return None
+            return {}
         raise
-
 
 def config_validate(data, schema):
     """
@@ -220,7 +219,7 @@ def config_load(config_file, schema = None, silent = False):
         data = json_load(config_file)
     except FileNotFoundError:
         if silent:
-            return None
+            return {}
         raise
 
     # Schema validation is optional.
