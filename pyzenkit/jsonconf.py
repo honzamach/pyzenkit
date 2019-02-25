@@ -136,7 +136,7 @@ def json_save(json_file, data, **kwargs):
         json.dump(data, jsf, **kwargs)
     return True
 
-def json_load(json_file):
+def json_load(json_file, silent = False):
     """
     Load contents of given JSON configuration file.
 
@@ -145,12 +145,20 @@ def json_load(json_file):
     the line (except for whitespaces).
 
     :param str json_file: Name of the source JSON file.
+    :param bool silent: Optional flag for suppressing exceptions on missing file, defaults to ``False``.
     :return: Loaded data structure.
     :rtype: dict
     """
-    with open(json_file, "r") as jsf:
-        contents = "\n".join((line for line in jsf if not line.lstrip().startswith(("#", "//"))))
-        return json.loads(contents)
+    try:
+        with open(json_file, "r") as jsf:
+            contents = "\n".join((line for line in jsf if not line.lstrip().startswith(("#", "//"))))
+            return json.loads(contents)
+
+    except FileNotFoundError:
+        if silent:
+            return None
+        raise
+
 
 def config_validate(data, schema):
     """
@@ -188,7 +196,7 @@ def config_validate(data, schema):
 
     return True
 
-def config_load(config_file, schema = None):
+def config_load(config_file, schema = None, silent = False):
     """
     Load configuration from given JSON configuration file with optional JSON
     schema validation.
@@ -203,11 +211,17 @@ def config_load(config_file, schema = None):
                    existing file, load the schema definitions from that file. If
                    the schema is ``dict``, treat it as a JSON schema structure
                    and directly perform validation.
+    :param bool silent: Optional flag for suppressing exceptions on missing file, defaults to ``False``.
     :raises TypeError: if the schema has invalid data type.
     :return: Loaded data structure.
     :rtype: dict
     """
-    data = json_load(config_file)
+    try:
+        data = json_load(config_file)
+    except FileNotFoundError:
+        if silent:
+            return None
+        raise
 
     # Schema validation is optional.
     if schema:
@@ -235,7 +249,7 @@ def config_load(config_file, schema = None):
 
     return data
 
-def config_load_n(config_files, schema = None):
+def config_load_n(config_files, schema = None, silent = False):
     """
     Load configuration from multiple JSON configuration files with optional JSON
     schema validation. Merges all loaded configurations into single ``dict``, so
@@ -257,17 +271,19 @@ def config_load_n(config_files, schema = None):
                    existing file, load the schema definitions from that file. If
                    the schema is ``dict``, treat it as a JSON schema structure
                    and directly perform validation.
+    :param bool silent: Optional flag for suppressing exceptions on missing file, defaults to ``False``.
     :raises TypeError: if the schema has invalid data type.
     :return: Loaded data structure.
     :rtype: dict
     """
     data = {}
     for cfn in config_files:
-        cfg = config_load(cfn, schema = schema)
-        data.update((key, val) for key, val in cfg.items() if val is not None)
+        cfg = config_load(cfn, schema = schema, silent = silent)
+        if cfg:
+            data.update((key, val) for key, val in cfg.items() if val is not None)
     return data
 
-def config_load_dir(config_dir, schema = None, extension = '.json.conf'):
+def config_load_dir(config_dir, schema = None, extension = '.json.conf', silent = False):
     """
     Load configuration from all JSON configuration files found within given
     configuration directory with optional JSON schema validation. Merges all
@@ -290,20 +306,26 @@ def config_load_dir(config_dir, schema = None, extension = '.json.conf'):
                    the schema is ``dict``, treat it as a JSON schema structure
                    and directly perform validation.
     :param str extension: Config file name extension for lookup function.
+    :param bool silent: Optional flag for suppressing exceptions on missing file, defaults to ``False``.
     :raises TypeError: if the schema has invalid data type.
     :return: Loaded data structure.
     :rtype: dict
     """
-    config_files = []
-    all_files = os.listdir(config_dir)
-    for afn in sorted(all_files):
-        afp = os.path.join(config_dir, afn)
-        if not os.path.isfile(afp):
-            continue
-        if not afp.endswith(extension):
-            continue
-        config_files.append(afp)
-    return config_load_n(config_files, schema)
+    try:
+        config_files = []
+        all_files = os.listdir(config_dir)
+        for afn in sorted(all_files):
+            afp = os.path.join(config_dir, afn)
+            if not os.path.isfile(afp):
+                continue
+            if not afp.endswith(extension):
+                continue
+            config_files.append(afp)
+        return config_load_n(config_files, schema, silent)
+    except FileNotFoundError:
+        if silent:
+            return {}
+        raise
 
 
 #-------------------------------------------------------------------------------

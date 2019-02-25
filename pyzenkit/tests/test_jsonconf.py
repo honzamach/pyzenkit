@@ -110,6 +110,7 @@ class TestPyzenkitJsonconf(unittest.TestCase):
         """
         # Attempt to load missing JSON file
         self.assertRaises(FileNotFoundError, pyzenkit.jsonconf.json_load, os.path.join(SPOOL_DIR, 'bogus.json'))
+        self.assertEqual(pyzenkit.jsonconf.json_load(os.path.join(SPOOL_DIR, 'bogus.json'), silent = True), None)
 
         # Attempt to load existing JSON files
         self.assertEqual(pyzenkit.jsonconf.json_load(os.path.join(SPOOL_DIR, 'a.json.conf')), {"x": 1, "y": 2, "z": 3})
@@ -146,6 +147,7 @@ class TestPyzenkitJsonconf(unittest.TestCase):
         """
         # Attempt to load missing JSON config file
         self.assertRaises(FileNotFoundError, pyzenkit.jsonconf.config_load, os.path.join(SPOOL_DIR, 'bogus.json'))
+        self.assertEqual(pyzenkit.jsonconf.config_load(os.path.join(SPOOL_DIR, 'bogus.json'), silent = True), None)
 
         # Attempt to load existing JSON config files
         self.assertEqual(pyzenkit.jsonconf.config_load(os.path.join(SPOOL_DIR, 'a.json.conf'), ), {"x": 1, "y": 2, "z": 3})
@@ -172,6 +174,10 @@ class TestPyzenkitJsonconf(unittest.TestCase):
         """
         Test loading of multiple config files.
         """
+        # Attempt to load missing JSON config files.
+        self.assertRaises(FileNotFoundError, pyzenkit.jsonconf.config_load_n, [os.path.join(SPOOL_DIR, 'bogus.json')])
+        self.assertEqual(pyzenkit.jsonconf.config_load_n([os.path.join(SPOOL_DIR, 'bogus.json')], silent = True), {})
+
         self.assertEqual(pyzenkit.jsonconf.config_load_n([
             os.path.join(SPOOL_DIR, 'a.json.conf'),
             os.path.join(SPOOL_DIR, 'b.json.conf'),
@@ -185,10 +191,14 @@ class TestPyzenkitJsonconf(unittest.TestCase):
             os.path.join(SPOOL_DIR, 'b.json.conf'),
             os.path.join(SPOOL_DIR, 'test.json')], schema = True), {"a": 1, "b": 2, "c": 3, "x": 100, "y": 2, "z": 3, "hello": 1, "world": 2})
 
-    def test_06_config_load_n(self):
+    def test_06_config_load_dir(self):
         """
         Test loading of config files within configuration directory.
         """
+        # Attempt to load missing JSON config files.
+        self.assertRaises(FileNotFoundError, pyzenkit.jsonconf.config_load_dir, os.path.join(SPOOL_DIR, 'bogusdir'))
+        self.assertEqual(pyzenkit.jsonconf.config_load_dir(os.path.join(SPOOL_DIR, 'bogusdir'), silent = True), {})
+
         self.assertEqual(pyzenkit.jsonconf.config_load_dir(SPOOL_DIR), {"a": 1, "b": 2, "c": 3, "x": 100, "y": 2, "z": 3})
         self.assertEqual(pyzenkit.jsonconf.config_load_dir(SPOOL_DIR, schema = SPOOL_DIR), {"a": 1, "b": 2, "c": 3, "x": 100, "y": 2, "z": 3})
         self.assertEqual(pyzenkit.jsonconf.config_load_dir(SPOOL_DIR, schema = True), {"a": 1, "b": 2, "c": 3, "x": 100, "y": 2, "z": 3})
