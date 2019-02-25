@@ -54,9 +54,7 @@ setup(
     author = 'Honza Mach',
     author_email = 'email@jan-mach.cz',
     license = 'MIT',
-    packages = [
-        'pyzenkit'
-    ],
+    packages = find_packages(),
     test_suite = 'nose.collector',
     tests_require = [
         'nose'
