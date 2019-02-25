@@ -497,11 +497,12 @@ class DemoZenScript(ZenScript):
             #
             # Configure required application paths to harmless locations.
             #
-            path_bin = '/tmp',
-            path_cfg = '/tmp',
-            path_log = '/tmp',
-            path_tmp = '/tmp',
-            path_run = '/tmp'
+            path_bin = 'tmp',
+            path_cfg = 'tmp',
+            path_var = 'tmp',
+            path_log = 'tmp',
+            path_run = 'tmp',
+            path_tmp = 'tmp'
         )
 
     def get_default_command(self):
@@ -568,12 +569,21 @@ class DemoZenScript(ZenScript):
 if __name__ == "__main__":
 
     # Prepare demonstration environment.
-    SCR_NAME = 'demo-zenscript.py'
-    pyzenkit.baseapp.BaseApp.json_save('/tmp/{}.conf'.format(SCR_NAME), {'test_a':1})
-    try:
-        os.mkdir('/tmp/{}'.format(SCR_NAME))
-    except FileExistsError:
-        pass
+    APP_NAME = 'demo-zenscript.py'
+    for directory in (
+            DemoZenScript.get_resource_path('tmp'),
+            DemoZenScript.get_resource_path('tmp/{}'.format(APP_NAME))
+    ):
+        try:
+            os.mkdir(directory)
+        except FileExistsError:
+            pass
 
-    ZENSCRIPT = DemoZenScript(SCR_NAME)
+    DemoZenScript.json_save(
+        DemoZenScript.get_resource_path('tmp/{}.conf'.format(APP_NAME)),
+        {'test_a':1}
+    )
+
+    # Launch demonstration.
+    ZENSCRIPT = DemoZenScript(APP_NAME)
     ZENSCRIPT.run()

@@ -581,8 +581,8 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             (self.CONFIG_NODAEMON,        False),
             (self.CONFIG_CHROOT_DIR,      None),
             (self.CONFIG_WORK_DIR,        '/'),
-            (self.CONFIG_PID_FILE,        os.path.join(self.paths.get(self.PATH_RUN), "{}.pid".format(self.name))),
-            (self.CONFIG_STATE_FILE,      os.path.join(self.paths.get(self.PATH_RUN), "{}.state".format(self.name))),
+            (self.CONFIG_PID_FILE,        os.path.join(self.paths[self.PATH_RUN], "{}.pid".format(self.name))),
+            (self.CONFIG_STATE_FILE,      os.path.join(self.paths[self.PATH_RUN], "{}.state".format(self.name))),
             (self.CONFIG_UMASK,           0o002),
             (self.CONFIG_STATS_INTERVAL,  300),
             (self.CONFIG_RUNLOG_INTERVAL, 300),
@@ -1294,13 +1294,14 @@ class DemoZenDaemon(ZenDaemon):
             #
             # Configure required application paths to harmless locations.
             #
-            path_bin = '/tmp',
-            path_cfg = '/tmp',
-            path_log = '/tmp',
-            path_tmp = '/tmp',
-            path_run = '/tmp',
+            path_bin = 'tmp',
+            path_cfg = 'tmp',
+            path_var = 'tmp',
+            path_log = 'tmp',
+            path_run = 'tmp',
+            path_tmp = 'tmp',
 
-            # Force dhe demonstration daemon to stay in foreground.
+            # Force the demonstration daemon to stay in foreground.
             default_no_daemon = True,
 
             # Define internal daemon components.
@@ -1326,12 +1327,21 @@ class DemoZenDaemon(ZenDaemon):
 if __name__ == "__main__":
 
     # Prepare demonstration environment.
-    DMN_NAME = 'demo-zendaemon.py'
-    pyzenkit.baseapp.BaseApp.json_save('/tmp/{}.conf'.format(DMN_NAME), {'test_a':1})
-    try:
-        os.mkdir('/tmp/{}'.format(DMN_NAME))
-    except FileExistsError:
-        pass
+    APP_NAME = 'demo-zendaemon.py'
+    for directory in (
+            DemoZenDaemon.get_resource_path('tmp'),
+            DemoZenDaemon.get_resource_path('tmp/{}'.format(APP_NAME))
+    ):
+        try:
+            os.mkdir(directory)
+        except FileExistsError:
+            pass
 
-    ZENDAEMON = DemoZenDaemon(DMN_NAME)
+    DemoZenDaemon.json_save(
+        DemoZenDaemon.get_resource_path('tmp/{}.conf'.format(APP_NAME)),
+        {'test_a':1}
+    )
+
+    # Launch demonstration.
+    ZENDAEMON = DemoZenDaemon(APP_NAME)
     ZENDAEMON.run()

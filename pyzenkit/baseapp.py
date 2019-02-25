@@ -495,6 +495,7 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
     #
     # Class constants.
     #
+    APP_ROOT_PATH = os.getenv('APP_ROOT_PATH', '/')
 
     # Global flag, that turns on additional debugging messages.
     FLAG_DEBUG = False
@@ -515,6 +516,7 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
     PATH_BIN = 'bin'
     PATH_CFG = 'cfg'
     PATH_LOG = 'log'
+    PATH_VAR = 'var'
     PATH_RUN = 'run'
     PATH_TMP = 'tmp'
 
@@ -591,6 +593,14 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
     RLEVKEY_AVGEFFECT  = 'avg_effectivity'
 
 
+    @classmethod
+    def get_resource_path(cls, fs_path, *more_chunks):
+        """
+        Return filesystem path to application resource.
+        """
+        return os.path.join(cls.APP_ROOT_PATH, fs_path, *more_chunks)
+
+
     #---------------------------------------------------------------------------
     # "__INIT__" STAGE METHODS.
     #---------------------------------------------------------------------------
@@ -610,11 +620,14 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         # Initialize list of desired plugins.
         self._plugins = kwargs.get(self.CONFIG_PLUGINS, [])
 
-        # [PUBLIC] Default application help description.
-        self.description = kwargs.get('description', 'BaseApp - Generic application')
+        self.paths  = self._init_paths(**kwargs)
+        """[PUBLIC] Application paths that will be used to construct various absolute file paths."""
 
-        # [PUBLIC] Initialize command line argument parser.
+        self.description = kwargs.get('description', 'BaseApp - Generic application')
+        """[PUBLIC] Default application help description."""
+
         self.argparser = self._init_argparser(**kwargs)
+        """[PUBLIC] Initialize command line argument parser."""
 
         # Parse CLI arguments immediatelly, we need to check for a few priority
         # flags and switches, like ``--debug``
@@ -624,8 +637,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
 
         self.name = self._init_name(**kwargs)
         """[PUBLIC] Name of the application, autodetected, or forced by object constructor arguments."""
-        self.paths  = self._init_paths(**kwargs)
-        """[PUBLIC] Application paths that will be used to construct various absolute file paths."""
         self.runlog = self._init_runlog(**kwargs)
         """[PUBLIC] Application processing runlog."""
         self.config = self._init_config((), **kwargs)
@@ -639,6 +650,32 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
 
         # Perform subinitializations on default configurations and argument parser.
         self._sub_stage_init(**kwargs)
+
+    def _init_paths(self, **kwargs):
+        """
+        Initialize various application filesystem paths like temp directory, log
+        directory etc. These values will when be used to autogenerate default paths
+        to various files and directories, like log file, persistent state file etc.
+
+        Gets called from main constructor :py:func:`~BaseApp.__init__`.
+
+        :param kwargs: Various additional parameters passed down from constructor.
+        :return: Configurations for various filesystem paths.
+        :rtype: dict
+        """
+        result = {}
+        for (path, default) in (
+                (self.PATH_BIN, 'usr/local/bin'),
+                (self.PATH_CFG, 'etc'),
+                (self.PATH_VAR, 'var'),
+                (self.PATH_LOG, 'var/log'),
+                (self.PATH_RUN, 'var/run'),
+                (self.PATH_TMP, 'var/tmp')
+        ):
+            result[path] = self.get_resource_path(
+                kwargs.get('path_{}'.format(path), default)
+            )
+        return result
 
     def _init_argparser(self, **kwargs):
         """
@@ -679,20 +716,20 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         arggroup_common.add_argument('--user',  help = 'process UID or user name', default = None)
         arggroup_common.add_argument('--group', help = 'process GID or group name', default = None)
 
-        arggroup_common.add_argument('--config-file', help = 'name of the configuration file', type = str, default = None)
-        arggroup_common.add_argument('--config-dir',  help = 'name of the configuration directory', type = str, default = None)
-        arggroup_common.add_argument('--log-file',    help = 'name of the log file', type = str, default = None)
+        arggroup_common.add_argument('--config-file', help = 'path to the configuration file', type = str, default = None)
+        arggroup_common.add_argument('--config-dir',  help = 'path to the configuration directory', type = str, default = None)
+        arggroup_common.add_argument('--log-file',    help = 'path to the log file', type = str, default = None)
         arggroup_common.add_argument('--log-level',   help = 'set logging level', choices = ['debug', 'info', 'warning', 'error', 'critical'], type = str, default = None)
 
         arggroup_common.add_argument('--action', help = 'name of the quick action to be performed', choices = self._utils_detect_actions(), type = str, default = None)
         arggroup_common.add_argument('--input',  help = 'file to be used as source file in action', type = str, default = None)
         arggroup_common.add_argument('--limit',  help = 'apply given limit to the result', type = int, default = None)
 
-        arggroup_common.add_argument('--pstate-file', help = 'name of the persistent state file', type = str, default = None)
+        arggroup_common.add_argument('--pstate-file', help = 'path to the persistent state file', type = str, default = None)
         arggroup_common.add_argument('--pstate-dump', help = 'dump persistent state to stdout when done processing (flag)', action = 'store_true', default = None)
         arggroup_common.add_argument('--pstate-log',  help = 'write persistent state to logging service when done processing (flag)', action = 'store_true', default = None)
 
-        arggroup_common.add_argument('--runlog-dir',  help = 'name of the runlog directory', type = str, default = None)
+        arggroup_common.add_argument('--runlog-dir',  help = 'path to the runlog directory', type = str, default = None)
         arggroup_common.add_argument('--runlog-dump', help = 'dump runlog to stdout when done processing (flag)', action = 'store_true', default = None)
         arggroup_common.add_argument('--runlog-log',  help = 'write runlog to logging service when done processing (flag)', action = 'store_true', default = None)
 
@@ -759,26 +796,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         self.dbgout("Using default application name '{}".format(app_name))
         return app_name
 
-    def _init_paths(self, **kwargs):
-        """
-        Initialize various application filesystem paths like temp directory, log
-        directory etc. These values will when be used to autogenerate default paths
-        to various files and directories, like log file, persistent state file etc.
-
-        Gets called from main constructor :py:func:`~BaseApp.__init__`.
-
-        :param kwargs: Various additional parameters passed down from constructor.
-        :return: Configurations for various filesystem paths.
-        :rtype: dict
-        """
-        return {
-            self.PATH_BIN: kwargs.get('path_{}'.format(self.PATH_BIN), "/usr/local/bin"),  # Application executable directory.
-            self.PATH_CFG: kwargs.get('path_{}'.format(self.PATH_CFG), "/etc"),            # Configuration directory.
-            self.PATH_LOG: kwargs.get('path_{}'.format(self.PATH_LOG), "/var/log"),        # Log directory.
-            self.PATH_RUN: kwargs.get('path_{}'.format(self.PATH_RUN), "/var/run"),        # Runlog directory.
-            self.PATH_TMP: kwargs.get('path_{}'.format(self.PATH_TMP), "/var/tmp"),        # Temporary file directory.
-        }
-
     def _init_runlog(self, **kwargs):
         """
         Initialize application runlog. Runlog should contain vital information about
@@ -841,12 +858,12 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
             (self.CONFIG_LIMIT,       None),
             (self.CONFIG_USER,        None),
             (self.CONFIG_GROUP,       None),
-            (self.CONFIG_CFG_FILE,    os.path.join(self.paths.get(self.PATH_CFG), "{}.conf".format(self.name))),
-            (self.CONFIG_CFG_DIR,     os.path.join(self.paths.get(self.PATH_CFG), "{}".format(self.name))),
-            (self.CONFIG_LOG_FILE,    os.path.join(self.paths.get(self.PATH_LOG), "{}.log".format(self.name))),
+            (self.CONFIG_CFG_FILE,    os.path.join(self.paths[self.PATH_CFG], "{}.conf".format(self.name))),
+            (self.CONFIG_CFG_DIR,     os.path.join(self.paths[self.PATH_CFG], "{}".format(self.name))),
+            (self.CONFIG_LOG_FILE,    os.path.join(self.paths[self.PATH_LOG], "{}.log".format(self.name))),
             (self.CONFIG_LOG_LEVEL,   'info'),
-            (self.CONFIG_PSTATE_FILE, os.path.join(self.paths.get(self.PATH_RUN), "{}.pstate".format(self.name))),
-            (self.CONFIG_RUNLOG_DIR,  os.path.join(self.paths.get(self.PATH_RUN), "{}".format(self.name))),
+            (self.CONFIG_PSTATE_FILE, os.path.join(self.paths[self.PATH_RUN], "{}.pstate".format(self.name))),
+            (self.CONFIG_RUNLOG_DIR,  os.path.join(self.paths[self.PATH_RUN], "{}".format(self.name))),
         ) + cfgs
         config = {}
         for cfg in cfgs:
@@ -2155,11 +2172,12 @@ class DemoBaseApp(BaseApp):
             #
             # Configure required application paths to harmless locations.
             #
-            path_bin = '/tmp',
-            path_cfg = '/tmp',
-            path_log = '/tmp',
-            path_tmp = '/tmp',
-            path_run = '/tmp'
+            path_bin = 'tmp',
+            path_cfg = 'tmp',
+            path_var = 'tmp',
+            path_log = 'tmp',
+            path_run = 'tmp',
+            path_tmp = 'tmp'
         )
 
     def _sub_stage_process(self):
@@ -2198,11 +2216,20 @@ if __name__ == "__main__":
 
     # Prepare demonstration environment.
     APP_NAME = 'demo-baseapp.py'
-    BaseApp.json_save('/tmp/{}.conf'.format(APP_NAME), {'test_a':1})
-    try:
-        os.mkdir('/tmp/{}'.format(APP_NAME))
-    except FileExistsError:
-        pass
+    for directory in (
+            DemoBaseApp.get_resource_path('tmp'),
+            DemoBaseApp.get_resource_path('tmp/{}'.format(APP_NAME))
+    ):
+        try:
+            os.mkdir(directory)
+        except FileExistsError:
+            pass
 
+    DemoBaseApp.json_save(
+        DemoBaseApp.get_resource_path('tmp/{}.conf'.format(APP_NAME)),
+        {'test_a':1}
+    )
+
+    # Launch demonstration.
     BASE_APP = DemoBaseApp(APP_NAME)
     BASE_APP.run()
