@@ -594,9 +594,18 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
     @classmethod
     def get_resource_path(cls, fs_path, *more_chunks):
         """
-        Return filesystem path to application resource.
+        Return filesystem path to application resource with ``APP_ROOT_PATH`` taken
+        into consideration. If ``fs_path`` is absolute the ``APP_ROOT_PATH`` will
+        be ignored as usual.
         """
         return os.path.join(cls.APP_ROOT_PATH, fs_path, *more_chunks)
+
+    @classmethod
+    def get_resource_path_fr(cls, fs_path, *more_chunks):
+        """
+        Force given application filesystem path to be relative to ``APP_ROOT_PATH``.
+        """
+        return os.path.join(cls.APP_ROOT_PATH, fs_path.strip(os.sep), *more_chunks)
 
 
     #---------------------------------------------------------------------------
