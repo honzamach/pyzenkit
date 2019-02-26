@@ -369,6 +369,7 @@ import traceback
 # Custom libraries.
 #
 import pydgets.widgets
+import pyzenkit.utils
 import pyzenkit.jsonconf
 
 
@@ -491,7 +492,6 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
     #
     # Class constants.
     #
-    APP_ROOT_PATH = os.getenv('APP_ROOT_PATH', '/')
 
     # Global flag, that turns on additional debugging messages.
     FLAG_DEBUG = False
@@ -598,14 +598,14 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         into consideration. If ``fs_path`` is absolute the ``APP_ROOT_PATH`` will
         be ignored as usual.
         """
-        return os.path.join(cls.APP_ROOT_PATH, fs_path, *more_chunks)
+        return pyzenkit.utils.get_resource_path(fs_path, *more_chunks)
 
     @classmethod
     def get_resource_path_fr(cls, fs_path, *more_chunks):
         """
         Force given application filesystem path to be relative to ``APP_ROOT_PATH``.
         """
-        return os.path.join(cls.APP_ROOT_PATH, fs_path.strip(os.sep), *more_chunks)
+        return pyzenkit.utils.get_resource_path_fr(fs_path, *more_chunks)
 
 
     #---------------------------------------------------------------------------
