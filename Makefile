@@ -11,196 +11,340 @@
 # Later it was developed much further and used for project of author`s employer.
 #-------------------------------------------------------------------------------
 
-DIR_LIB   = pyzenkit
-LIB_FILES = $(wildcard $(DIR_LIB)/*.py)
-DOC_FILES = $(wildcard *.rst)
-
-SPHINXOPTS        =
-SPHINXBUILD       = sphinx-build
-SPHINXAPIDOC      = sphinx-apidoc
-SPHINXPROJ        = PyZenKit
-SPHINXSOURCEDIR   = .
-SPHINXBUILDDIR    = doc/_build
-SPHINXAPIDIR      = doc/_doclib/apidoc
-SPHINXAPIDOCFILES = $(SPHINXAPIDIR)/$(SPHINXPROJ).rst $(SPHINXAPIDIR)/modules.rst
-
-PYTHON    = python3
-PIP       = pip3
-NOSETESTS = nosetests
-TWINE     = twine
-
-#
-# Color code definitions for colored terminal output
-# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
-#
-RED    = \033[0;31m
-GREEN  = \033[0;32m
-ORANGE = \033[0;33m
-BLUE   = \033[0;34m
-PURPLE = \033[0;35m
-CYAN   = \033[0;36m
-NC     = \033[0m
-
-
-#-------------------------------------------------------------------------------
-
 
 #
 # Default make target, alias for 'help', you must explicitly choose the target.
 #
 default: help
 
-#
-# Perform all reasonable tasks to do full build.
-#
-full: docs archive bdist deploy
+
+#===============================================================================
+
+
+PROJECT_ID   = pyzenkit
+PROJECT_NAME = PyZenKit
+DIR_LIB      = $(shell realpath ./pyzenkit)
+
+SPHINXOPTS        =
+SPHINXBUILD       = sphinx-build
+SPHINXAPIDOC      = sphinx-apidoc
+SPHINXPROJ        = $(PROJECT_NAME)
+SPHINXSOURCEDIR   = .
+SPHINXBUILDDIR    = doc/_build
+SPHINXAPIDIR      = doc/_doclib/apidoc
+SPHINXAPIDOCFILES = $(SPHINXAPIDIR)/$(SPHINXPROJ).rst $(SPHINXAPIDIR)/modules.rst
+
+VENV_PYTHON = python3
+VENV_PATH   = venv
+PYTHON      = python3
+PIP         = pip
+NOSETESTS   = nosetests
+TWINE       = twine
+
+CURRENT_DIR = $(shell pwd)
 
 #
-# Perform local build.
+# Include common makefile configurations.
 #
-build: archive bdist
+include Makefile.inc
 
 #
-# Perfom build from automated system.
+# Include local customized configurations.
 #
-buildbot: bdist
+include Makefile.cfg
+
+
+#===============================================================================
+
+
+help:
+	@echo ""
+	@echo "               ██████╗ ██╗   ██╗███████╗███████╗███╗   ██╗██╗  ██╗██╗████████╗"
+	@echo "               ██╔══██╗╚██╗ ██╔╝╚══███╔╝██╔════╝████╗  ██║██║ ██╔╝██║╚══██╔══╝"
+	@echo "               ██████╔╝ ╚████╔╝   ███╔╝ █████╗  ██╔██╗ ██║█████╔╝ ██║   ██║   "
+	@echo "               ██╔═══╝   ╚██╔╝   ███╔╝  ██╔══╝  ██║╚██╗██║██╔═██╗ ██║   ██║   "
+	@echo "               ██║        ██║   ███████╗███████╗██║ ╚████║██║  ██╗██║   ██║   "
+	@echo "               ╚═╝        ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝   ╚═╝   "
+	@echo "                        $(FAINT)Copyright (C) since 2015 CESNET, z.s.p.o$(NC)"
+	@echo ""
+	@echo " $(GREEN)$(BOLD)╔══════════════════════════════════════════════════════════════════════════════════╗$(NC)"
+	@echo " $(GREEN)$(BOLD)║                          LIST OF AVAILABLE MAKE TARGETS                          ║$(NC)"
+	@echo " $(GREEN)$(BOLD)╚══════════════════════════════════════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "  $(BLUE)$(BOLD)MAIN TARGETS$(NC)"
+	@echo "  $(BLUE)$(BOLD)────────────$(NC)"
+	@echo "  * $(GREEN)default$(NC): alias for help, you have to pick a target"
+	@echo "  * $(GREEN)help$(NC): print this help and exit"
+	@echo "  * $(GREEN)show-version$(NC): show current project version"
+	@echo "  * $(GREEN)show-envstamp$(NC): show information about current development environment"
+	@echo "  * $(GREEN)develop$(NC): install and configure project locally for development"
+	@echo "  * $(GREEN)deps$(NC): install project dependencies"
+	@echo "  * $(GREEN)clean$(NC): cleanup development and build environment"
+	@echo "  * $(GREEN)docs$(NC): generate project documentation"
+	@echo "  * $(GREEN)check$(NC): perform all checks and tests"
+	@echo "  * $(GREEN)build-whl$(NC): perform local build of Python distribution package"
+	@echo "  * $(GREEN)install-whl$(NC): perform local installation of Python distribution package"
+	@echo "  * $(GREEN)release-whl$(NC): release Python distribution package to PyPI"
+	@echo ""
+	@echo "  * $(GREEN)buildbot$(NC): build new distribution using buildbot automated system"
+	@echo ""
+	@echo "  $(BLUE)$(BOLD)HELPER TARGETS$(NC)"
+	@echo "  $(BLUE)$(BOLD)──────────────$(NC)"
+	@echo "  * $(GREEN)deps-prerequisites$(NC): check for development prerequisites"
+	@echo "  * $(GREEN)deps-lwchroot$(NC): creating local lightweight chroot subdirectory structure"
+	@echo "  * $(GREEN)deps-python$(NC): install Python dependencies"
+	@echo "  * $(GREEN)deps-python-dev$(NC): install Python development dependencies"
+	@echo "  * $(GREEN)deps-editable$(NC): installing project in editable mode"
+	@echo "  * $(GREEN)deps-python-upgrade$(NC): upgrade Python dependencies to latest versions"
+	@echo "  * $(GREEN)deps-python-upgrade-dev$(NC): upgrade Python development dependencies to latest versions"
+	@echo ""
+	@echo "  * $(GREEN)clean-pycs$(NC): clean up Python compiled files"
+	@echo "  * $(GREEN)clean-build-docs$(NC): clean up documentation build directories"
+	@echo "  * $(GREEN)clean-build-python$(NC): clean up Python build directories"
+	@echo ""
+	@echo "  * $(GREEN)docs-apidocs$(NC): regenerate autogenerated Sphinx apidoc files"
+	@echo "  * $(GREEN)docs-help$(NC): show list of all available html build targets"
+	@echo "  * $(GREEN)docs-html$(NC): generate project documentation in HTML format"
+	@echo ""
+	@echo "  * $(GREEN)pyflakes$(NC): check source code with pyflakes"
+	@echo "  * $(GREEN)pylint$(NC): check source code with pylint"
+	@echo "  * $(GREEN)test$(NC): run unit tests with nosetest"
+	@echo ""
+	@echo "  * $(GREEN)build-package-whl$(NC): actually generate Python package"
+	@echo ""
+	@echo " $(GREEN)════════════════════════════════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+
+
+#
+# Install and configure project locally for development. This target will perform
+# following tasks for you:
+#   - bootstrap the Python virtual environment into 'venv' subdirectory
+#   - install all requirements (requirements.pip)
+#   - install all development requirements (requirements-dev.pip)
+#   - install the project in editable mode
+#
+# NOTE: This target is calling 'venv/bin/activate' on its own to install the
+# requirements into newly created/existing virtual environment. When using all
+# other makefile targets you must enable the environment youself!
+#
+develop: FORCE
+	@echo "\n$(GREEN)*** Installing Python virtual environment for local development ***$(NC)\n"
+	@echo "Requested version: $(VENV_PYTHON)"
+	@echo "Path to binary:    `which $(VENV_PYTHON)`"
+	@echo "Path to venv:      $(VENV_PATH)"
+	@echo ""
+	@if [ -d $(VENV_PATH) ]; then\
+		echo "$(CYAN)Virtual environment already exists in '$(VENV_PATH)'.$(NC)";\
+	else\
+		$(VENV_PYTHON) -m venv $(VENV_PATH);\
+		echo "$(CYAN)Virtual environment successfully created in '$(VENV_PATH)'.$(NC)";\
+	fi
+	@echo ""
+	@echo "Venv path: `. $(VENV_PATH)/bin/activate && python -c 'import sys; print(sys.prefix)'`"
+	@echo "Python stuff versions:"
+	@echo ""
+	@ls -al $(VENV_PATH)/bin | grep python
+	@ls -al $(VENV_PATH)/bin | grep pip
+
+	@echo "\n$(GREEN)*** Installing project requirements ***$(NC)\n"
+	@. $(VENV_PATH)/bin/activate && $(PIP) install -r requirements.pip
+
+	@echo "\n$(GREEN)*** Installing project development requirements ***$(NC)\n"
+	@. $(VENV_PATH)/bin/activate && $(PIP) install -r requirements-dev.pip
+
+	@echo "\n$(GREEN)*** Installing project into virtual environment in editable mode ***$(NC)\n"
+	@. $(VENV_PATH)/bin/activate && $(PIP) install -e .
+
+	@echo "\n$(GREEN)*** Creating local lightweight chroot directory structure ***$(NC)\n"
+	@mkdir -p ./chroot/tmp
+
+	@echo "\n$(CYAN)Your development environment is ready in `. $(VENV_PATH)/bin/activate && python -c 'import sys; print(sys.prefix)'`.$(NC)\n"
+	@echo "Please activate it manually with following command:\n"
+	@echo "\t$(ORANGE). $(VENV_PATH)/bin/activate$(NC)\n"
+	@echo "Consider adding following alias to your ~/.bashrc file for easier environment activation:\n"
+	@echo "\t$(ORANGE)alias entervenv='. venv/bin/activate'$(NC)\n"
+	@echo "$(BOLD)!!! Please keep in mind, that all makefile targets except this one ('develop') leave it up to you to activate the correct virtual environment !!!$(NC)"
+	@echo ""
+
+#
+# Install and configure project dependencies.
+#
+deps: deps-prerequisites deps-lwchroot deps-python deps-python-dev deps-editable
+
+#
+# Cleanup development and build environment.
+#
+clean: clean-pycs clean-build-python clean-build-docs
+
+#
+# Generate project documentation.
+#
+docs: docs-html
 
 #
 # Check the project code.
 #
 check: pyflakes pylint test
 
+#
+# Perform local build of Python distribution package.
+#
+build-whl: clean build-package-whl
 
-#-------------------------------------------------------------------------------
+#
+# Install previously generated Python packages locally.
+#
+install-whl: FORCE
+	@echo "\n$(GREEN)*** Performing local installation of Python packages ***$(NC)\n"
+	@$(PIP) install dist/$(PROJECT_ID)*.whl --upgrade --force-reinstall
 
-
-help:
-	@echo ""
-	@echo " ${GREEN}────────────────────────────────────────────────────────────────────────────────${NC}"
-	@echo " ${GREEN}                          LIST OF AVAILABLE MAKE TARGETS${NC}"
-	@echo " ${GREEN}────────────────────────────────────────────────────────────────────────────────${NC}"
-	@echo ""
-	@echo "  * ${GREEN}default${NC}: alias for help, you have to pick a target"
-	@echo "  * ${GREEN}help${NC}: print this help and exit"
-	@echo "  * ${GREEN}show-version${NC}: show current project version"
-	@echo "  * ${GREEN}full${NC}: generate documentation, archive previous packages, build new distribution and deploy to PyPI"
-	@echo "  * ${GREEN}build${NC}: archive previous packages and build new distribution"
-	@echo "  * ${GREEN}buildbot${NC}: build new distribution using buildbot automated system"
-	@echo "  * ${GREEN}deps${NC}: install various dependencies"
-	@echo "     = ${ORANGE}deps-python${NC}: install Python dependencies with pip3"
-	@echo "  * ${GREEN}docs${NC}: generate project documentation"
-	@echo "     = ${ORANGE}docs-apidocs${NC}: regenerate autogenerated Sphinx apidoc files"
-	@echo "     = ${ORANGE}docs-help${NC}: show list of all available html build targets"
-	@echo "     = ${ORANGE}docs-html${NC}: generate project documentation in HTML format"
-	@echo "  * ${GREEN}check${NC}: perform extensive code checking"
-	@echo "     = ${ORANGE}pyflakes${NC}: check source code with pyflakes"
-	@echo "        - pyflakes-lib: check library with pyflakes, exclude test files"
-	@echo "        - pyflakes-test: check test files with pyflakes"
-	@echo "     = ${ORANGE}pylint${NC}: check source code with pylint"
-	@echo "        - pylint-lib: check library with pylint, exclude test files"
-	@echo "        - pylint-test: check test files with pylint"
-	@echo "     = ${ORANGE}test${NC}: run unit tests with nosetest"
-	@echo "  * ${GREEN}archive${NC}: archive previous packages"
-	@echo "  * ${GREEN}bdist${NC}:   build new distribution"
-	@echo "  * ${GREEN}install${NC}: install distribution on local machine"
-	@echo "  * ${GREEN}deploy${NC}:  deploy to PyPI"
-	@echo ""
-	@echo " ${GREEN}────────────────────────────────────────────────────────────────────────────────${NC}"
-	@echo ""
+#
+# Release previously generated Python packages to PyPI.
+#
+release-whl: FORCE
+	@echo "\n$(GREEN)*** Deploying packages to PyPI ***$(NC)\n"
+	@$(TWINE) upload dist/* --skip-existing
 
 
 #-------------------------------------------------------------------------------
 
+#
+# Compatibility make targets.
+#
 
-show-version: FORCE
-	@PYTHONPATH=. $(PYTHON) -c "import pyzenkit; print(pyzenkit.__version__);"
+#
+# Perform local build.
+#
+build: build-whl
+
+#
+# Perfom build from automated system.
+#
+buildbot: build-whl
 
 
 #-------------------------------------------------------------------------------
 
 
-deps: deps-python
+deps-prerequisites: FORCE
+	@echo "\n$(GREEN)*** Checking for development prerequisites ***$(NC)\n"
+	@for prereq in $(PYTHON) $(PIP) ; do \
+		if command -v $$prereq >/dev/null 2>&1; then \
+			echo "Prerequisite: $$prereq (`$$prereq --version | tr '\n' ',' | sed -e s/,$$//g;`)"; \
+		else \
+			echo "$(RED)PREREQUISITE: $$prereq (missing).$(NC)\n"; \
+			echo "You have to install this prerequisite manually.\n"; \
+			exit 1; \
+		fi \
+	done
+	@echo ""
+
+deps-lwchroot: FORCE
+	@echo "\n$(GREEN)*** Creating local lightweight chroot subdirectory structure ***$(NC)\n"
+	@mkdir -p ./chroot/tmp
+	@echo ""
 
 deps-python: FORCE
-	@echo "\n${GREEN}*** Installing Python dependencies ***${NC}\n"
+	@echo "\n$(GREEN)*** Installing Python dependencies ***$(NC)\n"
+	@$(PIP) --version
 	@$(PIP) install -r requirements.pip --upgrade
+	@echo ""
+
+deps-python-dev: FORCE
+	@echo "\n$(GREEN)*** Installing Python development dependencies ***$(NC)\n"
+	@$(PIP) --version
+	@$(PIP) install -r requirements-dev.pip
+	@echo ""
+
+deps-editable: FORCE
+	@echo "\n$(GREEN)*** Installing project in editable mode ***$(NC)\n"
+	@$(PIP) --version
+	@$(PIP) install -e .
+
+deps-python-upgrade: FORCE
+	@echo "\n$(GREEN)*** Upgrading Python dependencies to latest versions ***$(NC)\n"
+	@$(PIP) --version
+	@$(PIP) install -r requirements-latest.pip --upgrade
+	@echo ""
+
+deps-python-upgrade-dev: FORCE
+	@echo "\n$(GREEN)*** Upgrading Python development dependencies to latest versions ***$(NC)\n"
+	@$(PIP) --version
+	@$(PIP) install -r requirements-latest-dev.pip --upgrade
+	@echo ""
 
 
 #-------------------------------------------------------------------------------
 
 
-docs: docs-html
+clean-pycs: FORCE
+	@echo "\n$(GREEN)*** Cleaning up Python precompiled files ***$(NC)\n"
+	find . -name '*.pyc' -delete
+	find . -name '*.pyo' -delete
+	find . -name '*~' -delete
+	@echo ""
 
-docs-apidoc: FORCE
-	@echo "\n${GREEN}*** Autogenerating project API documentation ***${NC}\n"
-	@$(SPHINXAPIDOC) -e -o $(SPHINXAPIDIR) $(DIR_LIB)
+clean-build-python: FORCE
+	@echo "\n$(GREEN)*** Cleaning up Python build directories ***$(NC)\n"
+	rm --force --recursive --verbose build/
+	rm --force --recursive --verbose dist/
+	rm --force --recursive --verbose *.egg-info
+	@echo ""
+
+clean-build-docs: FORCE
+	@echo "\n$(GREEN)*** Cleaning up documentation build directories ***$(NC)\n"
+	rm --force --recursive --verbose $(SPHINXBUILDDIR)/*
+	rm --force --recursive --verbose $(SPHINXAPIDIR)/*
+	@echo ""
+
+
+#-------------------------------------------------------------------------------
+
 
 docs-help: FORCE
 	@$(SPHINXBUILD) -M help "$(SPHINXSOURCEDIR)" "$(SPHINXBUILDDIR)" $(SPHINXOPTS) $(O)
 
+docs-apidoc: FORCE
+	@echo "\n$(GREEN)*** Autogenerating project API documentation ***$(NC)\n"
+	@$(SPHINXAPIDOC) -e -o $(SPHINXAPIDIR) $(DIR_LIB)
+
 docs-html: docs-apidoc FORCE
-	@echo "\n${GREEN}*** Generating project documentation ***${NC}\n"
+	@echo "\n$(GREEN)*** Generating project documentation ***$(NC)\n"
 	@$(SPHINXBUILD) -M html "$(SPHINXSOURCEDIR)" "$(SPHINXBUILDDIR)" $(SPHINXOPTS) $(O)
 
 
 #-------------------------------------------------------------------------------
 
 
-pyflakes: pyflakes-lib pyflakes-test
-
-pyflakes-lib: FORCE
-	@echo "\n${GREEN}*** Checking code with pyflakes ***${NC}\n"
+pyflakes: FORCE
+	@echo "\n$(GREEN)*** Checking code with pyflakes ***$(NC)\n"
 	@$(PYTHON) --version
 	@echo ""
-	-@$(PYTHON) -m pyflakes $(DIR_LIB)/*.py
+	-@$(PYTHON) -m pyflakes $(DIR_LIB)
 
-pyflakes-test: FORCE
-	@echo "\n${GREEN}*** Checking test files with pyflakes ***${NC}\n"
+
+pylint: FORCE
+	@echo "\n$(GREEN)*** Checking code with pylint ***$(NC)\n"
 	@$(PYTHON) --version
 	@echo ""
-	-@$(PYTHON) -m pyflakes $(DIR_LIB)/tests/*.py
-
-pylint: pylint-lib pylint-test
-
-pylint-lib: FORCE
-	@echo "\n${GREEN}*** Checking code with pylint ***${NC}\n"
-	@$(PYTHON) --version
-	@echo ""
-	-@$(PYTHON) -m pylint $(DIR_LIB)/*.py --rcfile .pylintrc-lib
-
-pylint-test: FORCE
-	@echo "\n${GREEN}*** Checking test files with pylint ***${NC}\n"
-	@$(PYTHON) --version
-	@echo ""
-	-@$(PYTHON) -m pylint $(DIR_LIB)/tests/*.py --rcfile .pylintrc-test
+	-@$(PYTHON) -m pylint $(DIR_LIB) --rcfile .pylintrc
 
 test: FORCE
-	@echo "\n${GREEN}*** Checking code with nosetests ***${NC}\n"
+	@echo "\n$(GREEN)*** Checking code with nosetests ***$(NC)\n"
 	@$(NOSETESTS)
 
 
 #-------------------------------------------------------------------------------
 
 
-archive: FORCE
-	@if ! [ `ls dist/pyzenkit* | wc -l` = "0" ]; then\
-		echo "\n${GREEN}*** Moving old distribution files to archive ***${NC}\n";\
-		mv -f dist/pyzenkit* archive;\
-	fi
-
-bdist: FORCE
-	@echo "\n${GREEN}*** Building Python packages ***${NC}\n"
-	@$(PYTHON) --version
+build-package-whl: FORCE
+	@echo "\n$(GREEN)*** Building Python packages ***$(NC)\n"
+	@echo "Python version: `$(PYTHON) --version`"
 	@echo ""
 	@$(PYTHON) setup.py sdist bdist_wheel
+	@echo ""
 
-install: FORCE
-	@echo "\n${GREEN}*** Performing local installation ***${NC}\n"
-	@$(PIP) install dist/pyzenkit*.whl --upgrade
-
-deploy: FORCE
-	@echo "\n${GREEN}*** Deploying packages to PyPI ***${NC}\n"
-	@$(TWINE) upload dist/* --skip-existing
 
 # Empty rule as dependency will force make to always perform target
 # Source: https://www.gnu.org/software/make/manual/html_node/Force-Targets.html

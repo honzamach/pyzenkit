@@ -36,7 +36,7 @@ def load_dotenv(path = None):
     Changes the current working directory to the location of the first file
     found, with the assumption that it is in the top level project directory
     and will be where the Python path should import local packages from.
-    This is a no-op if `python-dotenv`_ is not installed.
+    This is a no-op if ``python-dotenv`` is not installed.
 
     :param str path: Load the file at this location instead of searching.
     :return: ``True`` if a file was loaded.
@@ -76,15 +76,10 @@ def load_dotenv_cwd():
     """
     Load "dotenv" files in order of precedence to set environment variables.
     If an env var is already set it is not overwritten, so earlier files in the
-    list are preferred over later files.
+    list are preferred over later files. This method attempts to load ``.env.local``
+    and ``.env`` files, if present in current directory.
 
-    Changes the current working directory to the location of the first file
-    found, with the assumption that it is in the top level project directory
-    and will be where the Python path should import local packages from.
-    This is a no-op if `python-dotenv`_ is not installed.
-
-    :return: ``True`` if a file was loaded.
-    :rtype: bool
+    This is a no-op if ``python-dotenv`` is not installed.
     """
     if dotenv is None:
         if os.path.isfile('.env.local') or os.path.isfile('.env'):

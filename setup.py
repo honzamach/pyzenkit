@@ -52,7 +52,7 @@ setup(
     keywords = 'library console script daemon',
     url = 'https://github.com/honzamach/pyzenkit',
     author = 'Honza Mach',
-    author_email = 'email@jan-mach.cz',
+    author_email = 'honza.mach.ml@gmail.com',
     license = 'MIT',
     packages = find_packages(),
     test_suite = 'nose.collector',
@@ -60,9 +60,9 @@ setup(
         'nose'
     ],
     install_requires=[
-        'pydgets',
         'python-dotenv',
-        'jsonschema'
+        'jsonschema',
+        'pydgets'
     ],
     include_package_data = True,
     zip_safe = False
