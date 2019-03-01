@@ -1,11 +1,12 @@
 ``--help``
-    Display help and usage description and exit (*flag*)
+    Display help and usage description and exit (*flag*).
 
-``--name alternative-name``
-    Alternative name for application instead of default ``$0``, using which names
-    for log, runlog, pid, status and other files will be generated.
+``--debug``
+    Run in debug mode (*flag*).
 
-    *Type:* ``string``, *default:* ``$0``
+    Input various status information to ``stderr``.
+
+    *Type:* ``boolean``, *default:* ``False``
 
 ``--quiet``
     Run in quiet mode (*flag*).
@@ -16,6 +17,34 @@
 
 ``--verbose``
     Increase application output verbosity (*flag*, *repeatable*).
+
+    *Type:* ``boolean``, *default:* ``False``
+
+``--name alternative-name``
+    Alternative name for application instead of default ``$0``.
+
+    This value will be used to generate names for log, runlog, pid, status and
+    other application files.
+
+    *Type:* ``string``, *default:* ``$0``
+
+``--config-file file-name``
+    Name of the configuration file.
+
+    *Type:* ``string``, *default:* autodetected
+
+``--config-file-silent``
+    Do not complain in case given configuration file does not exist (*flag*).
+
+    *Type:* ``boolean``, *default:* ``False``
+
+``--config-dir file-name``
+    Name of the configuration directory.
+
+    *Type:* ``string``, *default:* autodetected
+
+``--config-file-silent``
+    Do not complain in case given configuration directory does not exist (*flag*).
 
     *Type:* ``boolean``, *default:* ``False``
 
@@ -39,22 +68,22 @@
 
     *Type:* ``boolean``, *default:* ``False``
 
-``--runlog_log``
+``--runlog-log``
     Write runlog to logging service when done processing (*flag*)
 
     *Type:* ``boolean``, *default:* ``False``
 
-``--pstate_file file-name``
+``--pstate-file file-name``
     Name of the persistent state file.
 
     *Type:* ``string``, *default:* autodetected
 
-``--pstate_dump``
+``--pstate-dump``
     Dump persistent state to stdout when done processing (*flag*).
 
     *Type:* ``boolean``, *default:* ``False``
 
-``--pstate_log``
+``--pstate-log``
     Write persistent state to logging service when done processing (*flag*).
 
     *Type:* ``boolean``, *default:* ``False``

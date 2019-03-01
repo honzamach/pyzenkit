@@ -1,10 +1,14 @@
 ``--regular``
-    Operational mode: regular script execution (*flag*). Conflicts with ``--shell`` option.
+    Operational mode: regular script execution (*flag*).
+
+    Conflicts with ``--shell`` option.
 
     *Type:* ``boolean``, *default:* ``False``
 
 ``--shell``
-    Operational mode: manual script execution from shell (*flag*). Conflicts with ``--regular`` option.
+    Operational mode: manual script execution from shell (*flag*).
+
+     Conflicts with ``--regular`` option.
 
     *Type:* ``boolean``, *default:* ``False``
 
@@ -18,12 +22,12 @@
 
     *Type:* ``string``, *default:* ``daily``
 
-``--adjust_thresholds``
+``--adjust-thresholds``
     Round-up time interval threshols to interval size (*flag*).
 
     *Type:* ``boolean``, *default:* ``False``
 
-``--time_high time``
+``--time-high time``
     Upper time interval threshold.
 
     *Type:* ``float``, *default:* time.time

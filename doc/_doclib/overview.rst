@@ -5,6 +5,9 @@ Framework overview
 
 The whole framework is broken down into following submodules:
 
+:py:mod:`pyzenkit.utils`
+    Module containing various useful utilities.
+
 :py:mod:`pyzenkit.jsonconf`
     Module for handling JSON based configuration files and directories.
 

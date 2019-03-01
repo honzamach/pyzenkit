@@ -8,17 +8,17 @@
 
     *Type:* ``string``, *default:* ``None``
 
-``--work_dir dir-name``
+``--work-dir dir-name``
     Name of the process work directory.
 
     *Type:* ``string``, *default:* ``/``
 
-``--pid_file file-name``
+``--pid-file file-name``
     Name of the pid file.
 
     *Type:* ``string``, *default:* autodetected
 
-``--state_file file-name``
+``--state-file file-name``
     Name of the state file.
 
     *Type:* ``string``, *default:* autodetected
