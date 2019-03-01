@@ -61,6 +61,7 @@ setup(
     ],
     install_requires=[
         'pydgets',
+        'python-dotenv',
         'jsonschema'
     ],
     include_package_data = True,

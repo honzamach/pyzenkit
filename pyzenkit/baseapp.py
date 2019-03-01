@@ -373,6 +373,10 @@ import pyzenkit.utils
 import pyzenkit.jsonconf
 
 
+# Attempt to load local '.env.local' and '.env' files.
+pyzenkit.utils.load_dotenv_cwd()
+
+
 #-------------------------------------------------------------------------------
 
 
