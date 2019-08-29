@@ -1168,9 +1168,10 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
                     if flag != self.FLAG_CONTINUE:
                         break
             else:
-                wait_time = self.queue.wait()
-                if not self.flag_loop_done and wait_time > 0:
-                    self.wait(wait_time)
+                if self.flag_loop_done:
+                    raise ZenDaemonStopException("Deamon received interruption signal.")
+                elif self.queue.count() > 0:
+                    self.wait(self.queue.wait())
                 else:
                     raise ZenDaemonStopException("Daemon processing termination forced by empty queue, will not wait for time scheduled events.")
 
