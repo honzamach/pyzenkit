@@ -30,20 +30,20 @@ Framework features
 
 Currently the framework package contains following features:
 
-:py:mod:`pyzenkit.jsonconf`
+``pyzenkit.jsonconf``
     Module for handling JSON based configuration files and directories.
 
-:py:mod:`pyzenkit.daemonizer`
+``pyzenkit.daemonizer``
     Module for taking care of all process daemonization tasks.
 
-:py:mod:`pyzenkit.baseapp`
+``pyzenkit.baseapp``
     Module for writing generic console applications.
 
-:py:mod:`pyzenkit.zenscript`
+``pyzenkit.zenscript``
     Module for writing generic console scripts with built-in support for repeated
     executions (for example by cron-like service).
 
-:py:mod:`pyzenkit.zendaemon`
+``pyzenkit.zendaemon``
     Module for writing generic system services (daemons).
 
 
