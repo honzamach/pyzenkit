@@ -398,16 +398,23 @@ def calc_statistics(stats_cur, stats_prev, tdiff):
     for key in stats_cur:
         if isinstance(stats_cur[key], dict):
             result[key] = calc_statistics(stats_cur[key], stats_prev.get(key, {}), tdiff)
-        else:
+        elif stats_cur[key] > 0:
             result[key] = {
                 # Absolute count.
                 'cnt':  stats_cur[key],
-                # Increase count (delta from previous value).
+                # Increase (delta from previous value).
                 'inc':  stats_cur[key] - stats_prev.get(key, 0),
-                # Processing speed (#/s).
+                # Rate (#/s).
                 'spd': (stats_cur[key] - stats_prev.get(key, 0)) / tdiff,
-                # Percentage increase count.
+                # Percentage increase.
                 'pct': (stats_cur[key] - stats_prev.get(key, 0)) / (stats_cur[key] / 100)
+            }
+        else:
+            result[key] = {
+                'cnt': 0,
+                'inc': 0,
+                'spd': 0,
+                'pct': 0
             }
     return result
 
