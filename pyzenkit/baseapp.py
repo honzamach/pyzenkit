@@ -1875,7 +1875,7 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         :return: Name of the runlog file.
         :rtype: str
         """
-        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.runlog".format(self.runlog[self.RLKEY_TSFSF]))
+        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}{}.runlog".format(self.runlog[self.RLKEY_TSFSF], os.getpid()))
 
     def _get_fn_pstate(self):
         """
