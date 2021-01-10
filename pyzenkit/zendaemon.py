@@ -555,7 +555,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
     CONFIG_NODAEMON        = 'no_daemon'
     CONFIG_CHROOT_DIR      = 'chroot_dir'
     CONFIG_WORK_DIR        = 'work_dir'
-    CONFIG_PID_FILE        = 'pid_file'
     CONFIG_STATE_FILE      = 'state_file'
     CONFIG_UMASK           = 'umask'
     CONFIG_STATS_INTERVAL  = 'stats_interval'
@@ -621,7 +620,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
             (self.CONFIG_NODAEMON,        False),
             (self.CONFIG_CHROOT_DIR,      None),
             (self.CONFIG_WORK_DIR,        '/'),
-            (self.CONFIG_PID_FILE,        os.path.join(self.paths[self.PATH_RUN], "{}.pid".format(self.name))),
             (self.CONFIG_STATE_FILE,      os.path.join(self.paths[self.PATH_RUN], "{}.state".format(self.name))),
             (self.CONFIG_UMASK,           0o002),
             (self.CONFIG_STATS_INTERVAL,  300),
@@ -1082,27 +1080,6 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         self.dbgout("Paralel mode: using '{}' as state file".format(sfn))
         return sfn
 
-    def _get_fn_pidfile(self):
-        """
-        Return the name of the pidfile for current process.
-        """
-        if not self.c(self.CONFIG_PARALEL):
-            return self.c(self.CONFIG_PID_FILE)
-
-        pfn = re.sub(r'\.pid$',".{:05d}.pid".format(os.getpid()), self.c(self.CONFIG_PID_FILE))
-        self.dbgout("Paralel mode: using '{}' as pid file".format(pfn))
-        return pfn
-
-    def _get_fn_runlog(self):
-        """
-        Return the name of the runlog file for current process.
-        """
-        if not self.c(self.CONFIG_PARALEL):
-            return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.runlog".format(self.runlog[self.RLKEY_TSFSF]))
-
-        rfn = os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.{:05d}.runlog".format(self.runlog[self.RLKEY_TSFSF], os.getpid()))
-        self.dbgout("Paralel mode: using '{}' as runlog file".format(rfn))
-        return rfn
 
 
     #---------------------------------------------------------------------------
