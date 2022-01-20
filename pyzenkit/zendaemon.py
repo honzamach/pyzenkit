@@ -1076,7 +1076,7 @@ class ZenDaemon(pyzenkit.baseapp.BaseApp):
         if not self.c(self.CONFIG_PARALEL):
             return self.c(self.CONFIG_STATE_FILE)
 
-        sfn = re.sub(r'\.state$',".{:05d}.state".format(self._get_process_serial()), self.c(self.CONFIG_STATE_FILE))
+        sfn = re.sub(r'\.state$',".{}.state".format(self._get_process_serial()), self.c(self.CONFIG_STATE_FILE))
         self.dbgout("Paralel mode: using '{}' as state file".format(sfn))
         return sfn
 

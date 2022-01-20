@@ -1887,7 +1887,7 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         :return: Name of the runlog file.
         :rtype: str
         """
-        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.{:05d}.runlog".format(self.runlog[self.RLKEY_TSFSF], self._get_process_serial()))
+        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.{}.runlog".format(self.runlog[self.RLKEY_TSFSF], self._get_process_serial()))
 
     def _get_fn_pstate(self):
         """
@@ -1902,7 +1902,7 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         """
         Return the name of the pidfile for current process.
         """
-        return re.sub(r'\.pid$',".{:05d}.pid".format(self._get_process_serial()), self.c(self.CONFIG_PID_FILE))
+        return re.sub(r'\.pid$',".{}.pid".format(self._get_process_serial()), self.c(self.CONFIG_PID_FILE))
 
     def _utils_detect_actions(self):
         """

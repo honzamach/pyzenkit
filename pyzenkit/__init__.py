@@ -19,5 +19,5 @@ Python 3.
 """
 
 __author__  = "Honza Mach <honza.mach.ml@gmail.com>"
-__version__ = "0.60"
+__version__ = "0.61"
 
