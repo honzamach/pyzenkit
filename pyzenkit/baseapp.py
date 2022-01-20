@@ -647,6 +647,8 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         self._config_file = None
         self._config_dir  = None
 
+        self._process_serial = None
+
         self.name = self._init_name(**kwargs)
         """[PUBLIC] Name of the application, autodetected, or forced by object constructor arguments."""
         self.runlog = self._init_runlog(**kwargs)
@@ -1870,6 +1872,14 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
     #---------------------------------------------------------------------------
 
 
+    def _get_process_serial(self):
+        """
+        Return part of the filename unique for this process in case multiple instances are running.
+        """
+        if self._process_serial is None:
+            self._process_serial = hex(os.getpid())[2:].zfill(5)
+        return self._process_serial
+
     def _get_fn_runlog(self):
         """
         Return the name of the runlog file for current process.
@@ -1877,7 +1887,7 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         :return: Name of the runlog file.
         :rtype: str
         """
-        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.{:05d}.runlog".format(self.runlog[self.RLKEY_TSFSF], os.getpid()))
+        return os.path.join(self.c(self.CONFIG_RUNLOG_DIR), "{}.{:05d}.runlog".format(self.runlog[self.RLKEY_TSFSF], self._get_process_serial()))
 
     def _get_fn_pstate(self):
         """
@@ -1892,7 +1902,7 @@ class BaseApp:  # pylint: disable=locally-disabled,too-many-public-methods, too-
         """
         Return the name of the pidfile for current process.
         """
-        return re.sub(r'\.pid$',".{:05d}.pid".format(os.getpid()), self.c(self.CONFIG_PID_FILE))
+        return re.sub(r'\.pid$',".{:05d}.pid".format(self._get_process_serial()), self.c(self.CONFIG_PID_FILE))
 
     def _utils_detect_actions(self):
         """
